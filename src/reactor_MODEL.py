@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 
 """
 Project NAME:
-                         --------" ASTARA "------a Nuclear Power Plant simulator 
+                         --------" ASTARA --a Nuclear Power Plant simulator "-------- 
 PROGRAMMER:
 
 EBNY WALID AHAMMED 
-Undergrad Student (term 1 level 4)
+Undergrad Student (Level 4 term 1)
 Dept of Nuclear Engineering 
 University of Dhaka
 
@@ -31,12 +31,13 @@ from model prespective:
     2.The core will be divided in different parts (15+2 lumps )
     3.A graph of the temperature distribution will be shown 
     4.Modeling will follow the same assumption as the desetation 
-    5.for solving the differential equation Runge Kutta 4th order method will be used 
+    5.for solving the differential equation Runge Kutta 4th order method will be used ()
+
      
 """
 
 class Reactor ():
-
+    P0=1
 
     def __init__(self,Precursor_concentration:float,Area:float,
                  Coolant_heat_capacity:float,Fuel_heat_capacity:float,
@@ -136,8 +137,93 @@ class Reactor ():
         return Thl
     
 
-    def dT_cl(self):
+    def dT_cl(self): #---connect to feed water system
 
         Tcl=(self.T_po-self.T_cl)/self.Tau_cl
 
         return Tcl
+    
+
+    def dTf1(self):
+
+        Tf1=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(self.T_moderator_node1-self.T_fuel_node1)/(self.M*self.C_pf)
+
+        return Tf1
+    
+    def dTf2(self):
+
+        Tf2=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(self.T_moderator_node3-self.T_fuel_node2)/(self.M*self.C_pf)
+
+        return Tf2
+    
+    def dTf3(self):
+
+        Tf3=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(self.T_moderator_node5-self.T_fuel_node3)/(self.M*self.C_pf)
+
+        return Tf3
+    
+    def dTmol1(self):
+
+        TMol1= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(-self.T_moderator_node1+self.T_fuel_node1)/(self.M*self.C_pf)
+        +(self.T_lp-self.T_moderator_node1)/self.Tau_C
+
+        return TMol1
+        pass 
+    def dTmol2(self):
+
+        TMol2= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(-self.T_moderator_node1+self.T_fuel_node1)/(self.M*self.C_pf)
+        +(self.T_moderator_node1-self.T_moderator_node2)/self.Tau_C
+        
+        return TMol2
+    
+    def dTmol3(self):
+
+        TMol3= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(-self.T_moderator_node3+self.T_fuel_node2)/(self.M*self.C_pf)
+        +(self.T_moderator_node2-self.T_moderator_node3)/self.Tau_C
+
+        return TMol3
+        pass 
+    def dTmol4(self):
+
+        TMol4= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(-self.T_moderator_node3+self.T_fuel_node2)/(self.M*self.C_pf)
+        +(self.T_moderator_node3-self.T_moderator_node4)/self.Tau_C
+        
+        return TMol4
+    
+    def dTmol5(self):
+
+        TMol5= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(-self.T_moderator_node5+self.T_fuel_node3)/(self.M*self.C_pf)
+        +(self.T_moderator_node4-self.T_moderator_node5)/self.Tau_C
+
+        return TMol5
+ 
+    def dTmol6(self):
+
+        TMol6= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        +self.h*self.A*(-self.T_moderator_node5+self.T_fuel_node3)/(self.M*self.C_pf)
+        +(self.T_moderator_node5-self.T_moderator_node6)/self.Tau_C
+        
+        return TMol6
+    
+    def step_integator(self,function,condition:list,stepsize):
+
+        dt=stepsize
+        y0=condition[0]
+
+        return y0+function()*dt
+    
+"""reactor modeling
+things remains:
+1.Have to couple this with the steam generator 
+2.Have to couple this with the feed water pump 
+3.Have to couple this with the reactor controller 
+4.Have to write the friend function-- all the calculation initiator 
+"""
