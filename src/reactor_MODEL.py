@@ -24,7 +24,7 @@ from coding prespective:
     2.Multithreading will be done to solve the nonlinear differential eq
     3.Reactor constants will be initialized via the OBJECT's constructor 
     4.Reactor and Reactor controller ---(in that case control rod driving system)
-      will be two different objects but there will be a friend function for calculations and data interchange 
+      will be two different objects but there will be a function for calculations and data interchange 
 
 from model prespective:
     1.The whole reactor will be considered as a uniform fuel rod 
@@ -225,5 +225,5 @@ things remains:
 1.Have to couple this with the steam generator 
 2.Have to couple this with the feed water pump 
 3.Have to couple this with the reactor controller 
-4.Have to write the friend function-- all the calculation initiator 
+4.Have to write the function-- all the calculation initiator 
 """
