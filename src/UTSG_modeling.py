@@ -37,7 +37,7 @@ class UTSG():
                 Specific_heat_capacity_of_primary_fluid:float,Specific_heat_capacity_of_subcooled_region_fluid:float,
                 Avg_enthalpy_boiling_region:float,Saturated_enthal_water:float,latent_enthal_water:float,
                 Ex_enthal_boiling_region:float,constant:list,water_level_inUTSG:float,subcooled_length:float,
-                boiling_length:float,Metal_mass_in_metal_node1:float,Metal_mass_in_metal_node2:float,
+                Metal_mass_in_metal_node1:float,Metal_mass_in_metal_node2:float,
                 Mass_water_in_the_the_primarynode1:float,Mass_water_in_the_the_primarynode2:float,
                 Mass_water_in_the_the_primarynode3:float,Mass_water_in_the_the_primarynode4:float,
                 Mass_of_water_in_t_h_e_inlet_plenum:float,Steam_generator_pressure:float,
@@ -87,7 +87,6 @@ class UTSG():
         self.L_d=downcomer_length
         self.L_dw=water_level_inUTSG
         self.L_s1=subcooled_length
-        self.L_s2=boiling_length
         self.M_m1=Metal_mass_in_metal_node1
         self.M_m2=Metal_mass_in_metal_node2
         self.M_p1=Mass_water_in_the_the_primarynode1
@@ -131,8 +130,30 @@ class UTSG():
         self.X4=Constant_parameters_of_the_water_property_equations[3]
         self.X5=Constant_parameters_of_the_water_property_equations[4]
         self.X6=Constant_parameters_of_the_water_property_equations[5]
+        self.Xe=steamquality_leaving_the_boiling_region
         self.Rou_b=Average_density_of_the_fluid_in_the_boiling_region
         self.Rou_g=Density_of_the_saturated_steam
         self.Rou_r=Density_of_the_fluid_riser_region
 
-        pass
+
+    def constitutive_eq(self):
+
+
+        self.H_f=self.X3+self.K3*self.P
+        self.H_fg=self.x4+self.K4*self.P
+        self.H_b=self.H_f+self.Xe*self.H_fg/2
+        self.H_ex=self.H_f+self.Xe*self.H_fg
+        self.L_s2=self.L-self.L_s1
+
+        self.T_sat=self.X5+self.K5*self.P
+        self.V_f=self.X1+self.K1*self.P
+        self.V_fg=self.X2+self.K2*self.P
+        self.Wst=self.C1*self.P
+        self.Rou_b=1/(self.V_f+self.Xe*self.V_fg/2)
+        self.Rou_r=1/(self.V_f+self.Xe*self.V_fg)
+        self.Rou_g=self.X6+self.K6*self.P
+
+        """every variable I calculate here don't need to be on the constructor
+           and    will update it later """
+    
+
