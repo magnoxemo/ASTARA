@@ -2,6 +2,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import scipy as sp 
+from Reactor_MODEL import Reactor
 
 """
 Project NAME:
@@ -30,7 +31,7 @@ This will be a  generalized model of PWR.This code is based on this desetation:
 class UTSG():
 
     def __init__(self,Number_of_Utube:int,Tube_D_outside:float,
-                Tube_D_inside:float,Tube_height:float,UTSG_height:float,downcomer_length:float,
+                Tube_D_inside:float,UTSG_height:float,downcomer_length:float,
                 secondaryFlow_area_in_the_U_tube_region:float,
                 area_of_the_drum_water_section:float,pressure_drop_coefficient_in_the_recirculating_loop:float,
                 Steam_valve_coefficient:float,Specific_heat_capacity_of_the_metaltubes:float,
@@ -152,8 +153,113 @@ class UTSG():
         self.Rou_b=1/(self.V_f+self.Xe*self.V_fg/2)
         self.Rou_r=1/(self.V_f+self.Xe*self.V_fg)
         self.Rou_g=self.X6+self.K6*self.P
-
-        """every variable I calculate here don't need to be on the constructor
+        
+        
+        
+    """every variable we calculate here don't need to be on the constructor
            and    will update it later """
     
 
+    """differential eq for the metal tube and water section """
+
+    def dTpi(self):
+
+        dT_pi=(self.W_pi/self.M_pi)*(self.theta-self.T_pi) #wpi and theta will be coupled with reactor 
+
+        return dT_pi
+    
+    def dTp1(self):
+
+        #first node 
+        dT_p1=self.W_pi*(self.T_pi-self.T_p1)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s1)
+        +(self.U_pm*self.S_ms1*(self.T_m1-self.T_p1)/(self.M_p1*self.Cp1))
+
+        return dT_p1
+
+    def dTp2(self,sub_cool_height_change_rate):
+
+        #second node
+
+        dls1dt=sub_cool_height_change_rate
+
+        dT_p2=self.W_pi*(self.T_p1-self.T_p2)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s2)
+        +(self.U_pm*self.S_ms2*(self.T_m2-self.T_p2)/(self.M_p1*self.Cp1))+(self.T_p1-self.T_p2)*dls1dt/self.L_s2
+    
+        return dT_p2
+    
+    def dTp3(self):
+
+        #3rd node 
+
+        dT_p3=self.W_pi*(self.T_p2-self.T_p3)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s1)
+        +(self.U_pm*self.S_ms1*(self.T_m3-self.T_p3)/(self.M_p1*self.Cp1))
+
+        return dT_p3   
+
+
+    def dTp4(self,sub_cool_height_change_rate):
+
+        #fourth node
+
+        dls1dt=sub_cool_height_change_rate
+
+        dT_p4=self.W_pi*(self.T_p1-self.T_p2)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s2)
+        +(self.U_pm*self.S_ms2*(self.T_m4-self.T_p4)/(self.M_p1*self.Cp1))+(self.T_p3-self.T_p4)*dls1dt/self.L_s2
+    
+        return dT_p4
+
+    def dTpo(self):
+
+        dT_po=(self.T_p4-self.T_po)*self.W_pi/self.Mpo   #Mpo will also be coupled with the reactor 
+
+        return dT_po
+
+
+    def dTm1(self,sub_cool_height_change_rate):
+
+        dls1dt=sub_cool_height_change_rate
+
+        dT_m1=self.U_pm*self.S_pm1*self.T_p1/(self.M_m1*self.Cm)-(self.U_pm*self.S_pm1+self.U_ms1*self.S_ms1)*self.T_m1/(self.M_m1*self.Cm)
+        +self.U_ms1*self.S_ms1*(self.T_d+self.T_sat)/(self.M_m1*self.Cm*2)+(self.T_m2-self.T_m1)/(2*self.L_s1)*dls1dt
+
+        return dT_m1
+    
+    
+    def dTm2(self,sub_cool_height_change_rate):
+
+        dls1dt=sub_cool_height_change_rate
+
+        dT_m2=self.U_pm*self.S_pm2*self.T_p2/(self.M_m2*self.Cm)-(self.U_pm*self.S_pm2+self.U_ms2*self.S_ms2)*self.T_m2/(self.M_m2*self.Cm)
+        +self.U_ms2*self.S_ms2*self.T_sat/(self.M_m2*self.Cm)+(self.T_m2-self.T_m1)/(2*self.L_s2)*dls1dt
+
+        return dT_m2
+
+    def dTm3(self,sub_cool_height_change_rate):
+
+        dls1dt=sub_cool_height_change_rate
+
+        dT_m3=self.U_pm*self.S_pm2*self.T_p3/(self.M_m2*self.Cm)-(self.U_pm*self.S_pm2+self.U_ms2*self.S_ms2)*self.T_m3/(self.M_m2*self.Cm)
+        +self.U_ms2*self.S_ms2*self.T_sat/(self.M_m2*self.Cm)+(self.T_m3-self.T_m4)/(2*self.L_s2)*dls1dt
+
+        return dT_m3
+
+    def dTm4(self,sub_cool_height_change_rate):
+
+        dls1dt=sub_cool_height_change_rate
+
+        dT_m4=dT_m1=self.U_pm*self.S_pm1*self.T_p4/(self.M_m1*self.Cm)-(self.U_pm*self.S_pm1+self.U_ms1*self.S_ms1)*self.T_m4/(self.M_m1*self.Cm)
+        +self.U_ms1*self.S_ms1*(self.T_d+self.T_sat)/(self.M_m1*self.Cm*2)+(self.T_m3-self.T_m4)/(2*self.L_s1)*dls1dt
+
+        return dT_m4  
+
+    def dTLs1(self):
+
+        """
+        w1-- comes from the feed water pump
+        w2-- exits the SFSL 
+    rou_s1-- density if SFSL
+
+        dT_Ls1=(w1-w2)/(rou_s1*Af_s)
+        
+        """
+        pass 
