@@ -11,7 +11,7 @@ from UTSG_MODEL import UTSG
                                            
                         -------------------TURBINE MODEL ------------------------
 
-PROGRAMMER:
+PROGRAMMER and Copy Right::
 
 EBNY WALID AHAMMED 
 Undergrad Student (Level 4 term 1)
@@ -19,15 +19,23 @@ Dept of Nuclear Engineering
 University of Dhaka                                          
 
 
-
 """
 class Turbine():
 
-    def __init__(self,Throttle_valve:object,moisture_seperator:object
-                 ,Reheater:object):
+    def __init__(self,Throttle_valve:object,Moisture_seperator:object
+                 ,Reheater:object,HighPressureTurbine:object,LowPressureTurbine:object):
         self.Throttle_valve=Throttle_valve
-        self.moisture_seperator=moisture_seperator
+        self.moisture_seperator=Moisture_seperator
         self.Reheater=Reheater
+        self.HighPressureTurbine=HighPressureTurbine
+        self.LowPressureTurbine=LowPressureTurbine
+
+    def integrator(self,function,condition:list,stepsize):
+        
+        dt=stepsize
+        y0=condition[0]
+
+        return y0+function()*dt
     
 class Throttle_valve():
     def __init__(self,Area_main:float,Area_secondary:float,
@@ -106,10 +114,45 @@ class Reheater():
         pass
 
 class HighPressureTurbine():
-    def __init__(self,exit_steam_density:float) :
+    def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
+                 exit_flow_rate_to_MS:float,exit_flow_rate_to_heater:float,
+                 time_const:float,HP_co_efficient:float) :
+        
         self.rou_exit=exit_steam_density
-        pass
+        self.W_hpex=exit_flow_rate_to_MS
+        self.W_bhp=exit_flow_rate_to_heater
+        self.Tau=time_const
+        self.Whp_in=inlet_flow_rate
+        self.C=HP_co_efficient
 
+    def _dwhpex(self):
+
+        Dwhpex=((self.Whp_in-self.W_bhp)-self.W_hpex)/self.Tau
+
+        return Dwhpex 
+    
+    def _wbhp(self):
+
+        self.wbhp=self.C*self.Whp_in
+         
 class LowPressureTurbine():
-    def __init__(self) :
-        pass
+    def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
+                 exit_flow_rate_to_MS:float,exit_flow_rate_to_heater:float,
+                 time_const:float,LP_co_efficient:float) :
+        
+        self.rou_exit=exit_steam_density
+        self.W_lpex=exit_flow_rate_to_MS    #goes to the condenser 
+        self.W_blp=exit_flow_rate_to_heater #goes to the heater 
+        self.Tau=time_const
+        self.Wlp_in=inlet_flow_rate         #this comes from the moisture seperator and reheater
+        self.C=LP_co_efficient
+    
+    def _dwlpex(self):
+
+        Dwlpex=((self.Wlp_in-self.W_blp)-self.W_lpex)/self.Tau
+
+        return Dwlpex
+    
+    def _wblp(self):
+      
+        self.wblp=self.C*self.Wlp_in
