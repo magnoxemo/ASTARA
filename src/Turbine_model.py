@@ -9,7 +9,7 @@ from UTSG_MODEL import UTSG
 """
                          --------" ASTARA --a Nuclear Power Plant simulator "--------                                             
                                            
-                        -------------------PRESSURIZER MODEL ------------------------
+                        -------------------TURBINE MODEL ------------------------
 
 PROGRAMMER:
 
