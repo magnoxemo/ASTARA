@@ -11,7 +11,7 @@ from UTSG_MODEL import UTSG
                                            
                         -------------------TURBINE MODEL ------------------------
 
-PROGRAMMER and Copy Right::
+PROGRAMMER:
 
 EBNY WALID AHAMMED 
 Undergrad Student (Level 4 term 1)
@@ -23,7 +23,8 @@ University of Dhaka
 class Turbine():
 
     def __init__(self,Throttle_valve:object,Moisture_seperator:object
-                 ,Reheater:object,HighPressureTurbine:object,LowPressureTurbine:object):
+                 ,Reheater:object,HighPressureTurbine:object,LowPressureTurbine:object
+                 ):
         self.Throttle_valve=Throttle_valve
         self.moisture_seperator=Moisture_seperator
         self.Reheater=Reheater
@@ -56,6 +57,9 @@ class Throttle_valve():
         else:
             self.Pos_main_v=pos_main_valve
             self.pos_second_v=pos_second_valve
+
+        self.W_m=self.Cf_m*self.A_m*self.W_utsg*self.Pos_main_v
+        self.W_2nd=self.Cf_s*self.A_s*self.W_utsg*self.pos_second_v
 
         # position of the main and second valve means how much the percentage of the valve is opened 
         #Here is Pos_main_V=100 then it's fully open
@@ -108,10 +112,39 @@ class Moisture_seperator():
         pass
 
 
-class Reheater():
-    def __init__(self,pressure:float):
-        self.P=pressure
-        pass
+class Reheater(Throttle_valve):
+
+    class Reheater_steam():
+        def __init__(self,pressure:float,time_const_flowrate:float,time_const_heating:float,
+                    flow_rate_to_2nd_heater:float,steam_temp:float,Heater_temp:float,
+                    Heat:float,heat_transfer_coefficient:float,Gas_const:float):
+            self.P=pressure
+            self.w_2nd=Throttle_valve.W_2nd
+            self.tau_1=time_const_flowrate
+            self.tau_2=time_const_heating
+            self.W_ro=flow_rate_to_2nd_heater #for initial_cond
+            self.T_steam=steam_temp
+            self.T_r=Heater_temp
+            self.Q=Heat
+            self.H=heat_transfer_coefficient
+            self.R=Gas_const
+
+        def _dwro(self):
+
+            Dwro=(self.w_2nd-self.W_ro)/self.tau_1
+
+            return Dwro
+        
+        def _dQr(self):
+
+            dQr=((self.T_steam-self.T_r)*(self.w_2nd+self.W_ro)*self.H-2*self.Q)/(2*self.tau_2)
+            self.T_r=self.P/(self.R*self.rou_r)
+
+            return dQr
+        
+    class MainSteam():
+        def __init__(self):
+            pass
 
 class HighPressureTurbine():
     def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
@@ -147,12 +180,12 @@ class LowPressureTurbine():
         self.Wlp_in=inlet_flow_rate         #this comes from the moisture seperator and reheater
         self.C=LP_co_efficient
     
-    def _dwlpex(self):
+    def _dwhpex(self):
 
         Dwlpex=((self.Wlp_in-self.W_blp)-self.W_lpex)/self.Tau
 
         return Dwlpex
     
-    def _wblp(self):
-      
-        self.wblp=self.C*self.Wlp_in
+    def _wbhp(self):
+
+        self.wbhp=self.C*self.Wlp_in
