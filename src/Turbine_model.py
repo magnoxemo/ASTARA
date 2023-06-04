@@ -1,3 +1,4 @@
+
 import numpy as np
 import matplotlib.pyplot as plt 
 import threading
@@ -5,7 +6,6 @@ from pandas import ExcelWriter
 import scipy as sp
 from Condenser_Model import Condenser
 from UTSG_MODEL import UTSG
-
 """
                          --------" ASTARA --a Nuclear Power Plant simulator "--------                                             
                                            
@@ -67,7 +67,7 @@ class Throttle_valve():
         self.W_m=self.Cf_m*self.A_m*self.W_utsg*self.Pos_main_v
         self.W_2nd=self.Cf_s*self.A_s*self.W_utsg*self.pos_second_v
 
-class Nozzle_chest(Throttle_valve):
+class Nozzle_chest():
 
     def __init__(self,Effective_volume_of_nozzle_Chest:float,steam_pressure_chest:float,
                  steam_density_chest:float,nozzle_chest_enthalpy:float,
@@ -108,11 +108,30 @@ class Nozzle_chest(Throttle_valve):
 
 
 class Moisture_seperator():
-    def __init__(self):
-        pass
+    def __init__(self,enthalpy_hpex:float,enthalpy_fg:float,enthalpy_f:float,
+                 flow_rate_of_the_steam_from_the_steamseperator:float):
+                
+        
+        #constant
+        self.h_hpex=enthalpy_hpex
+        self.h_f=enthalpy_f
+        self.h_fg=enthalpy_fg
+
+        #variable
+        self.W_mss=flow_rate_of_the_steam_from_the_steamseperator
+        self.W_hp1=Nozzle_chest._Whp()
+        self.Wbhp=HighPressureTurbine._wbhp()
+
+    def _wmsw(self):
+
+        self.Wmsw=(self.W_hp1-self.Wbhp)-self.W_mss
+        
+    def _wmss(self):
+
+        self.W_mss=(self.W_hp1-self.Wbhp)*(self.h_hpex-self.h_f)/self.h_fg  #that will go to the reheater 
 
 
-class Reheater(Throttle_valve):
+class Reheater():
 
     class Reheater_steam():
         def __init__(self,pressure:float,time_const_flowrate:float,time_const_heating:float,
@@ -168,6 +187,8 @@ class HighPressureTurbine():
 
         self.wbhp=self.C*self.Whp_in
          
+    
+
 class LowPressureTurbine():
     def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
                  exit_flow_rate_to_MS:float,exit_flow_rate_to_heater:float,
