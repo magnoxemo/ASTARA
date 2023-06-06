@@ -1,0 +1,27 @@
+final python3 codes with constants 
+
+Model 						Solver:												
+	1.Reactor                              | solver1: Runge Kutta 4th order
+	2.Reactor Pump                         | solver2: Euler's method
+	3.Reactivity Controller                |
+	4.Pressure Controller		       |
+	5.Pressurizer 			       |
+	6.UTSG                                 |
+	7.ECS                                  |
+	8.Throttle Valve                       |
+	9.Nozzle chest                         |
+	10.HP
+	11.IP
+	12.LP
+	13.Mositure Seperator
+	14.Reheater
+	15.Heater1
+	16.Heater2
+	17.Condenser
+	18.Feed Water Pump
+
+finals:
+	a.simulation API
+	b.simulation Controller
+	c.simulation Dynamics
+	d.simulation live data 
