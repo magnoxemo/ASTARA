@@ -20,7 +20,7 @@ class steam_data:
         self.uf=np.array(data['      uf'])*10**3
         self.ug=np.array(data['      ug'])*10**3
         self.hf=np.array(data['     hf'])*10**3
-        self.hfg=np.array(data['     hfg      '])**3
+        self.hfg=np.array(data['     hfg      '])*10**3
         self.hfg=np.array(data['     hfg      '])*10**3
 
         self.sg=np.array(data['    sg'])*10**3
