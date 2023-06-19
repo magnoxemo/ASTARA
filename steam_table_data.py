@@ -6,8 +6,10 @@ class steam_data:
   
     def __init__(self):
         
+
         self.data_load()
         self.interpolate()
+
 
     def data_load(self):
     
@@ -25,7 +27,7 @@ class steam_data:
 
         self.sg=np.array(data['    sg'])*10**3
         self.sf=np.array(data['      sf'])*10**3
-        self. sfg=np.array(data['   sfg'])*10**3
+        self.sfg=np.array(data['   sfg'])*10**3
 
     def interpolate(self):
     
@@ -40,31 +42,68 @@ class steam_data:
         self.vol_f=interp1d(self.temp,self.vf)
         self.pressure=interp1d(self.temp,self.p)
 
-    def Pressure(self,Temperature:float):
-        return self.pressure(Temperature)
+    def getPressure(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("Pressure data at this %.3f K Temperature range not found "  %Temperature)
+        else:
+            return self.pressure(Temperature)
     
-    def Entropy_f(self,Temperature:float):
-        return self.entropy_f(Temperature)
+    def getEntropy_f(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("Entropy_f data at this %.3f K Temperature range not found "  %Temperature)
+        else:
+            return self.entropy_f(Temperature)
     
-    def Entropy_fg(self,Temperature:float):
-        return self.entropy_fg(Temperature)
+    def getEntropy_fg(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("Entropy_fg at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.entropy_fg(Temperature)
     
-    def Volume_f(self,Temperature:float):
-        return self.vf(Temperature)
+    def getVolume_f(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("Volume_f data at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.vf(Temperature)
     
-    def Volume_g(self,Temperature:float):
-        return self.vg(Temperature)
+    def getVolume_g(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("Volume_g data at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.vg(Temperature)
     
-    def Enthalpy_f(self,Temperature:float):
-        return self.enthalpy_f(Temperature)
+    def getEnthalpy_f(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+
+            raise ValueError("Enthalpy_f data at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.enthalpy_f(Temperature)
     
-    def Enthalpy_fg(self,Temperature:float):
-        return self.enthalpy_fg(Temperature) 
+    def getEnthalpy_fg(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("Enthalpy_fg data at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.enthalpy_fg(Temperature) 
     
-    def InternalEnergy_f(self,Temperature:float):
-        return self.internal_energy_f(Temperature)   
+    def getInternalEnergy_f(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("InternalEnergy_f data at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.internal_energy_f(Temperature)   
     
-    def InternalEnergy_g(self,Temperature:float):
-        return self.internal_energy_g(Temperature) 
+    def getInternalEnergy_g(self,Temperature:float):
+
+        if Temperature<273 or Temperature>648:
+            raise ValueError("InternalgEnergy_ data at this %.3f Temperature range not found "  %Temperature)
+        else:
+            return self.internal_energy_g(Temperature) 
 
 Data_sheet=steam_data()
