@@ -1,10 +1,15 @@
 import numpy as np
-import math
-import matplotlib.pyplot as plt
-import scipy as sp 
-from Reactor_MODEL import Reactor
-from UTSG_MODEL import UTSG
 
+
+"""
+Project NAME:
+                         --------" ASTARA --a Nuclear Power Plant simulator "-------- 
+PROGRAMMER:
+
+EBNY WALID AHAMMED 
+Undergrad Student (Level 4 term 1)
+Dept of Nuclear Engineering 
+University of Dhaka"""
 
 class reactor_primary_coolant_pump():
 
@@ -51,5 +56,10 @@ class reactor_primary_coolant_pump():
 
         DNp=(self.Pd-self.water_density*self.Qp*self.Hp)/(self.Np*self.I*4*np.pi**2)
         return DNp
+
+    def solver(self,function,y0,dt:float):
+        
+        f=function
+        return y0+function*dt
 
     
