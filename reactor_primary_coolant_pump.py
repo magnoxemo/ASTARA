@@ -12,13 +12,16 @@ class reactor_primary_coolant_pump():
                  #initial_contidions
                  moment_of_innertia:float,norminal_pump_speed:float,actual_pump_speed:float,norminal_flow_rate:float,actual_flow_rate:float,
                  power_delivered_to_shaft:float,torque_delivered_to_shaft:float,Total_hydrodynamic_head_loss:float,
-                 developed_pump_head:float,Torque_delivered_to_pump_shaft:float,Hydrodynamic_torque:float):
+                 developed_pump_head:float,Hydrodynamic_torque:float,const:list):
 
         self.A=area_of_piping
         self.L=piping_length
         self.k=friction_factor
         self.g=9.8
         self.water_density=1000
+        self.A=const[0]
+        self.B=const[1]
+        self.C=const[2]
 
 
         self.Np=actual_pump_speed
@@ -28,8 +31,25 @@ class reactor_primary_coolant_pump():
         self.Pd=power_delivered_to_shaft
         self.Td=torque_delivered_to_shaft
         self.Hd=developed_pump_head
-        self.Hl=Total_hydrodynamic_head_loss
+        self.Ht=Total_hydrodynamic_head_loss
         self.I=moment_of_innertia
         self.Td=torque_delivered_to_shaft
         self.Th=Hydrodynamic_torque
 
+        self.alpha=actual_flow_rate/norminal_flow_rate
+        self.beta=actual_flow_rate/norminal_flow_rate
+
+
+    def dqdt(self):
+
+        self.Hp=self.A*(self.Qp)**2+self.B*self.beta*self.Qp+self.C*self.beta**2
+        Dq=self.A*self.g*(self.Hp-self.Ht)/self.l
+        
+        return Dq
+    
+    def dNpdt(self):
+
+        DNp=(self.Pd-self.water_density*self.Qp*self.Hp)/(self.Np*self.I*4*np.pi**2)
+        return DNp
+
+    
