@@ -171,7 +171,7 @@ class UTSG():
     def dTp1(self):
 
         #first node 
-        dT_p1=self.W_pi*(self.T_pi-self.T_p1)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s1)
+        dT_p1=self.W_pi*(self.T_pi-self.T_p1)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s1)\
         +(self.U_pm*self.S_ms1*(self.T_m1-self.T_p1)/(self.M_p1*self.Cp1))
 
         return dT_p1
@@ -182,7 +182,7 @@ class UTSG():
 
         dls1dt=sub_cool_height_change_rate
 
-        dT_p2=self.W_pi*(self.T_p1-self.T_p2)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s2)
+        dT_p2=self.W_pi*(self.T_p1-self.T_p2)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s2)\
         +(self.U_pm*self.S_ms2*(self.T_m2-self.T_p2)/(self.M_p1*self.Cp1))+(self.T_p1-self.T_p2)*dls1dt/self.L_s2
     
         return dT_p2
@@ -191,7 +191,7 @@ class UTSG():
 
         #3rd node 
 
-        dT_p3=self.W_pi*(self.T_p2-self.T_p3)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s1)
+        dT_p3=self.W_pi*(self.T_p2-self.T_p3)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s1)\
         +(self.U_pm*self.S_ms1*(self.T_m3-self.T_p3)/(self.M_p1*self.Cp1))
 
         return dT_p3   
@@ -203,7 +203,7 @@ class UTSG():
 
         dls1dt=sub_cool_height_change_rate
 
-        dT_p4=self.W_pi*(self.T_p1-self.T_p2)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s2)
+        dT_p4=self.W_pi*(self.T_p1-self.T_p2)/(self.Rou_pi*self.P_r1**2*self.N*np.pi*self.L_s2)\
         +(self.U_pm*self.S_ms2*(self.T_m4-self.T_p4)/(self.M_p1*self.Cp1))+(self.T_p3-self.T_p4)*dls1dt/self.L_s2
     
         return dT_p4
@@ -219,7 +219,7 @@ class UTSG():
 
         dls1dt=sub_cool_height_change_rate
 
-        dT_m1=self.U_pm*self.S_pm1*self.T_p1/(self.M_m1*self.Cm)-(self.U_pm*self.S_pm1+self.U_ms1*self.S_ms1)*self.T_m1/(self.M_m1*self.Cm)
+        dT_m1=self.U_pm*self.S_pm1*self.T_p1/(self.M_m1*self.Cm)-(self.U_pm*self.S_pm1+self.U_ms1*self.S_ms1)*self.T_m1/(self.M_m1*self.Cm)\
         +self.U_ms1*self.S_ms1*(self.T_d+self.T_sat)/(self.M_m1*self.Cm*2)+(self.T_m2-self.T_m1)/(2*self.L_s1)*dls1dt
 
         return dT_m1
@@ -229,7 +229,7 @@ class UTSG():
 
         dls1dt=sub_cool_height_change_rate
 
-        dT_m2=self.U_pm*self.S_pm2*self.T_p2/(self.M_m2*self.Cm)-(self.U_pm*self.S_pm2+self.U_ms2*self.S_ms2)*self.T_m2/(self.M_m2*self.Cm)
+        dT_m2=self.U_pm*self.S_pm2*self.T_p2/(self.M_m2*self.Cm)-(self.U_pm*self.S_pm2+self.U_ms2*self.S_ms2)*self.T_m2/(self.M_m2*self.Cm)\
         +self.U_ms2*self.S_ms2*self.T_sat/(self.M_m2*self.Cm)+(self.T_m2-self.T_m1)/(2*self.L_s2)*dls1dt
 
         return dT_m2
@@ -238,7 +238,7 @@ class UTSG():
 
         dls1dt=sub_cool_height_change_rate
 
-        dT_m3=self.U_pm*self.S_pm2*self.T_p3/(self.M_m2*self.Cm)-(self.U_pm*self.S_pm2+self.U_ms2*self.S_ms2)*self.T_m3/(self.M_m2*self.Cm)
+        dT_m3=self.U_pm*self.S_pm2*self.T_p3/(self.M_m2*self.Cm)-(self.U_pm*self.S_pm2+self.U_ms2*self.S_ms2)*self.T_m3/(self.M_m2*self.Cm)\
         +self.U_ms2*self.S_ms2*self.T_sat/(self.M_m2*self.Cm)+(self.T_m3-self.T_m4)/(2*self.L_s2)*dls1dt
 
         return dT_m3
@@ -247,7 +247,7 @@ class UTSG():
 
         dls1dt=sub_cool_height_change_rate
 
-        dT_m4=dT_m1=self.U_pm*self.S_pm1*self.T_p4/(self.M_m1*self.Cm)-(self.U_pm*self.S_pm1+self.U_ms1*self.S_ms1)*self.T_m4/(self.M_m1*self.Cm)
+        dT_m4=dT_m1=self.U_pm*self.S_pm1*self.T_p4/(self.M_m1*self.Cm)-(self.U_pm*self.S_pm1+self.U_ms1*self.S_ms1)*self.T_m4/(self.M_m1*self.Cm)\
         +self.U_ms1*self.S_ms1*(self.T_d+self.T_sat)/(self.M_m1*self.Cm*2)+(self.T_m3-self.T_m4)/(2*self.L_s1)*dls1dt
 
         return dT_m4  
