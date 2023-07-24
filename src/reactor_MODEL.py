@@ -146,69 +146,69 @@ class Reactor ():
 
     def dTf1(self):
 
-        Tf1=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        Tf1=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
         +self.h*self.A*(self.T_moderator_node1-self.T_fuel_node1)/(self.M*self.C_pf)
 
         return Tf1
     
     def dTf2(self):
 
-        Tf2=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        Tf2=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
         +self.h*self.A*(self.T_moderator_node3-self.T_fuel_node2)/(self.M*self.C_pf)
 
         return Tf2
     
     def dTf3(self):
 
-        Tf3=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
+        Tf3=self.F_r*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
         +self.h*self.A*(self.T_moderator_node5-self.T_fuel_node3)/(self.M*self.C_pf)
 
         return Tf3
     
     def dTmol1(self):
 
-        TMol1= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
-        +self.h*self.A*(-self.T_moderator_node1+self.T_fuel_node1)/(self.M*self.C_pf)
+        TMol1= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
+        +self.h*self.A*(-self.T_moderator_node1+self.T_fuel_node1)/(self.M*self.C_pf)\
         +(self.T_lp-self.T_moderator_node1)/self.Tau_C
 
         return TMol1
         pass 
     def dTmol2(self):
 
-        TMol2= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
-        +self.h*self.A*(-self.T_moderator_node1+self.T_fuel_node1)/(self.M*self.C_pf)
+        TMol2= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
+        +self.h*self.A*(-self.T_moderator_node1+self.T_fuel_node1)/(self.M*self.C_pf)\
         +(self.T_moderator_node1-self.T_moderator_node2)/self.Tau_C
         
         return TMol2
     
     def dTmol3(self):
 
-        TMol3= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
-        +self.h*self.A*(-self.T_moderator_node3+self.T_fuel_node2)/(self.M*self.C_pf)
+        TMol3= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
+        +self.h*self.A*(-self.T_moderator_node3+self.T_fuel_node2)/(self.M*self.C_pf)\
         +(self.T_moderator_node2-self.T_moderator_node3)/self.Tau_C
 
         return TMol3
         pass 
     def dTmol4(self):
 
-        TMol4= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
-        +self.h*self.A*(-self.T_moderator_node3+self.T_fuel_node2)/(self.M*self.C_pf)
+        TMol4= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
+        +self.h*self.A*(-self.T_moderator_node3+self.T_fuel_node2)/(self.M*self.C_pf)\
         +(self.T_moderator_node3-self.T_moderator_node4)/self.Tau_C
         
         return TMol4
     
     def dTmol5(self):
 
-        TMol5= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
-        +self.h*self.A*(-self.T_moderator_node5+self.T_fuel_node3)/(self.M*self.C_pf)
+        TMol5= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
+        +self.h*self.A*(-self.T_moderator_node5+self.T_fuel_node3)/(self.M*self.C_pf)\
         +(self.T_moderator_node4-self.T_moderator_node5)/self.Tau_C
 
         return TMol5
  
     def dTmol6(self):
 
-        TMol6= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)
-        +self.h*self.A*(-self.T_moderator_node5+self.T_fuel_node3)/(self.M*self.C_pf)
+        TMol6= (1-self.F_r)*self.P0*(self.P/self.P0)/(self.M*self.C_pf)\
+        +self.h*self.A*(-self.T_moderator_node5+self.T_fuel_node3)/(self.M*self.C_pf)\
         +(self.T_moderator_node5-self.T_moderator_node6)/self.Tau_C
         
         return TMol6
