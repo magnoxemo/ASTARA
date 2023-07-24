@@ -67,7 +67,7 @@ class Pressurizer():
     
     def dLw(self):
 
-        Lw=(1/(self.area*self.L_w))*(self.area*(self.L-self.L_w)*self.Kp5-self.C2/self.C1)*self.dPr()+self.W_sp/self.C1+self.W_co/self.C2
+        Lw=(1/(self.area*self.L_w))*(self.area*(self.L-self.L_w)*self.Kp5-self.C2/self.C1)*self.dPr()+self.W_sp/self.C1+self.W_co/self.C2\
         self.W_co=(self.C2*self.dPr()-self.W_sr-self.W_sp)/self.C1
 
         return Lw
@@ -86,10 +86,10 @@ class Pressurizer():
         self.hfg=    self.Xp7+self.const[6]*self.P_pr
 
 
-        numerator=self.Q+self.W_sr*(self.P_pr*self.meu_g/(self.J*self.C1)+self.hfg/self.C1)
+        numerator=self.Q+self.W_sr*(self.P_pr*self.meu_g/(self.J*self.C1)+self.hfg/self.C1)\
         +self.W_sp*(self.h_sp-self.hf+self.hfg/self.C1+self.P_pr*(self.meu_g+self.meu_fg)/(self.J*self.C1))
 
-        denominator=self.M_w*(self.const[5]+self.const[1]*self.P_pr/self.J)+self.M_s*self.const[1]*self.P_pr/self.J
+        denominator=self.M_w*(self.const[5]+self.const[1]*self.P_pr/self.J)+self.M_s*self.const[1]*self.P_pr/self.J\
         -self.V_w/self.J +self.C2/self.C1*(self.hfg+self.P_pr*(self.meu_f+self.meu_fg)/self.J)
 
         Pr=numerator/denominator
