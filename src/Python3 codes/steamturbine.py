@@ -43,7 +43,7 @@ class inlet_plenum():
 
 class primary_lump():
 
-    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list):
+    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,outletTemperature:float):
 
         self.number_of_utube=3383
         self.inner_diameter=0.019685
@@ -107,14 +107,38 @@ class primary_lump():
             self.Tm2=MetalLumpTemperature[1]
             self.Tm3=MetalLumpTemperature[2]
             self.Tm4=MetalLumpTemperature[3]
+
+        self.Tpo=outletTemperature
          
     
     def DTp1(self,inlet_plenum:object):
-        
         """inlet_plenum"""
-        dtdp1=self.Wpi*(inlet_plenum.Temperature-self.Tp1)/(self.density*self.Ap*self.frist_lump_length)\
+        dtdTp1=self.Wpi*(inlet_plenum.Temperature-self.Tp1)/(self.density*self.Ap*self.frist_lump_length)\
               +self.Primary_side_flim_conductance*self.Spm1*(self.Tm1-self.Tp1)\
-              /(self.Mp1-self.heat_capacity_1)
-        
-        
-        return dtdp1
+              /(self.Mp1*self.heat_capacity_1)
+        return dtdTp1
+    
+    def DTp2(self,sub_cool_region:object):
+        '''DLs1 method will be called from the sub_cool_region class '''
+        dtdTp2=self.Wpi*(self.Tp1-self.Tp2)/(self.density*self.Ap*self.second_lump_length)\
+              +self.Primary_side_flim_conductance*self.Spm2*(self.Tm2-self.Tp2)\
+              /(self.Mp1*self.heat_capacity_1)+(self.Tp2-self.Tp1)*sub_cool_region.DLs1()/\
+              self.second_lump_length
+        return dtdTp2
+    
+    def DTp3(self):
+        dtdTp3=self.Wpi*(self.Tp2-self.Tp3)/(self.density*self.Ap*self.frist_lump_length)\
+              +self.Primary_side_flim_conductance*self.Spm2*(self.Tm3-self.Tp3)\
+              /(self.Mp1*self.heat_capacity_1)       
+        return dtdTp3
+    
+    def DTp4(self,sub_cool_region:object):
+        '''DLs1 method will be called from the sub_cool_region class '''
+        dtdTp4=self.Wpi*(self.Tp1-self.Tp2)/(self.density*self.Ap*self.second_lump_length)\
+              +self.Primary_side_flim_conductance*self.Spm1*(self.Tm4-self.Tp4)\
+              /(self.Mp1*self.heat_capacity_1)+(self.Tp3-self.Tp4)*sub_cool_region.DLs1()/\
+              self.frist_lump_length
+        return dtdTp4   
+     
+    def integrator(self,function,intitial_cond,time_step):
+        return function()*time_step+intitial_cond
