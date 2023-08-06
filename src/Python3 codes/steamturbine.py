@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import threading 
 import scipy as sp
 
-class inlet_plenum():
+class InletPlenum():
     
     def __init__(self,Temperature:float):
         """
@@ -41,9 +41,9 @@ class inlet_plenum():
 
 
 
-class primary_lump():
+class PrimaryLump():
 
-    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,outletTemperature:float):
+    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,ProutTemperature:float):
 
         self.number_of_utube=3383
         self.inner_diameter=0.019685
@@ -108,7 +108,7 @@ class primary_lump():
             self.Tm3=MetalLumpTemperature[2]
             self.Tm4=MetalLumpTemperature[3]
 
-        self.Tpo=outletTemperature
+        self.Tpo=ProutTemperature
          
     
     def DTp1(self,inlet_plenum:object):
@@ -141,4 +141,63 @@ class primary_lump():
         return dtdTp4   
      
     def integrator(self,function,intitial_cond,time_step):
+
         return function()*time_step+intitial_cond
+    
+
+class MetalLump():
+    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,Temperature_SFSL:float,Temperature_SFBL:float,PrimaryLump:object):
+        
+        self.heat_capacity_m=460.547802
+        self.number_of_utube=3383
+        self.inner_diameter=0.019685
+        self.outer_diameter=0.022225
+        self.metaldensity= 8481.095
+        self.length=10.831712
+        self.frist_lump_length=1.05017116
+
+        '''Mass calculation in the metal lump '''
+        self.Mm=self.metaldensity*self.number_of_utube*self.length*np.pi*(self.outer_diameter**2-self.inner_diameter**2)/4
+        self.Mm1=self.Mm*self.frist_lump_length/self.length
+        self.Mm2=self.Mm*(self.length-self.frist_lump_length)/self.length
+        self.Mm3=self.Mm2
+        self.Mm4=self.Mm1
+
+        '''      constant imported from the primary lump'''
+        self.Spm1=PrimaryLump.Spm1
+        self.Spm2=PrimaryLump.Spm2
+        self.Sm1=PrimaryLump.Sm1
+        self.Sm2=PrimaryLump.Sm2
+        self.Ums1=PrimaryLump.Tube_metal_conductance_subcool
+        self.Ums2=PrimaryLump.Tube_metal_conductance_boiling
+        self.Up1=PrimaryLump.Primary_side_flim_conductan
+
+        
+
+        '''initial conditions'''
+        self.Td=Temperature_SFSL
+        self.Tstat=Temperature_SFBL
+
+
+        if len(PrimaryLumpTemperature)!=4:
+            raise ValueError(" Initial condition error in metal lump")
+        else:
+            self.Tp1=PrimaryLumpTemperature[0]
+            self.Tp2=PrimaryLumpTemperature[1]
+            self.Tp3=PrimaryLumpTemperature[2]
+            self.Tp4=PrimaryLumpTemperature[3]
+
+        if len(MetalLumpTemperature)!=4:
+            raise ValueError(" Initial condition error in metal lump")
+        else:
+            self.Tm1=MetalLumpTemperature[0]
+            self.Tm2=MetalLumpTemperature[1]
+            self.Tm3=MetalLumpTemperature[2]
+            self.Tm4=MetalLumpTemperature[3]
+    
+    def DTm1(self,sub_cool_region:object):
+        dtdTm1=self.Up1*self.Spm1*self.Tp1/(self.Mm1*self.heat_capacity_m)-\
+        (self.Up1*self.Spm1+self.Ums1*self.Sm1)*self.Tm1/(self.Mm1*self.heat_capacity_m)\
+        +self.Ums1*self.Sm1*(self.Td+self.Tstat)/(2*self.Mm1*self.heat_capacity_m)\
+        -(self.Tm2-self.Tm1)*sub_cool_region.DLs1()/(2*self.frist_lump_length)
+        return dtdTm1
