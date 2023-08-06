@@ -119,17 +119,21 @@ class PrimaryLump():
         return dtdTp1
     
     def DTp2(self,sub_cool_region:object):
+
         '''DLs1 method will be called from the sub_cool_region class '''
         dtdTp2=self.Wpi*(self.Tp1-self.Tp2)/(self.density*self.Ap*self.second_lump_length)\
               +self.Primary_side_flim_conductance*self.Spm2*(self.Tm2-self.Tp2)\
               /(self.Mp1*self.heat_capacity_1)+(self.Tp2-self.Tp1)*sub_cool_region.DLs1()/\
               self.second_lump_length
+        
         return dtdTp2
     
     def DTp3(self):
+
         dtdTp3=self.Wpi*(self.Tp2-self.Tp3)/(self.density*self.Ap*self.frist_lump_length)\
               +self.Primary_side_flim_conductance*self.Spm2*(self.Tm3-self.Tp3)\
-              /(self.Mp1*self.heat_capacity_1)       
+              /(self.Mp1*self.heat_capacity_1)     
+          
         return dtdTp3
     
     def DTp4(self,sub_cool_region:object):
@@ -138,6 +142,7 @@ class PrimaryLump():
               +self.Primary_side_flim_conductance*self.Spm1*(self.Tm4-self.Tp4)\
               /(self.Mp1*self.heat_capacity_1)+(self.Tp3-self.Tp4)*sub_cool_region.DLs1()/\
               self.frist_lump_length
+        
         return dtdTp4   
      
     def integrator(self,function,intitial_cond,time_step):
@@ -146,7 +151,7 @@ class PrimaryLump():
     
 
 class MetalLump():
-    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,Temperature_SFSL:float,Temperature_SFBL:float,PrimaryLump:object):
+    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,Temperature_SFSL:float,Temperature_SFBL:float):
         
         self.heat_capacity_m=460.547802
         self.number_of_utube=3383
@@ -164,13 +169,15 @@ class MetalLump():
         self.Mm4=self.Mm1
 
         '''      constant imported from the primary lump'''
-        self.Spm1=PrimaryLump.Spm1
-        self.Spm2=PrimaryLump.Spm2
-        self.Sm1=PrimaryLump.Sm1
-        self.Sm2=PrimaryLump.Sm2
-        self.Ums1=PrimaryLump.Tube_metal_conductance_subcool
-        self.Ums2=PrimaryLump.Tube_metal_conductance_boiling
-        self.Up1=PrimaryLump.Primary_side_flim_conductan
+        self.Sm=np.pi*self.length*self.outer_diameter*self.number_of_utube
+        self.Sm1=self.Sm*self.frist_lump_length/self.length
+        self.Sm2=self.Sm*(self.length-self.frist_lump_length)/self.length
+        self.Sm3=self.Sm2
+        self.Sm4=self.Sm1
+
+        self.Ums1=11186.216
+        self.Ums2=34068
+        self.Up1=25563
 
         
 
@@ -196,8 +203,53 @@ class MetalLump():
             self.Tm4=MetalLumpTemperature[3]
     
     def DTm1(self,sub_cool_region:object):
+
         dtdTm1=self.Up1*self.Spm1*self.Tp1/(self.Mm1*self.heat_capacity_m)-\
         (self.Up1*self.Spm1+self.Ums1*self.Sm1)*self.Tm1/(self.Mm1*self.heat_capacity_m)\
         +self.Ums1*self.Sm1*(self.Td+self.Tstat)/(2*self.Mm1*self.heat_capacity_m)\
         -(self.Tm2-self.Tm1)*sub_cool_region.DLs1()/(2*self.frist_lump_length)
+
         return dtdTm1
+    
+    def DTm2(self,sub_cool_region:object):
+
+        dtdTm2=self.Up1*self.Spm2*self.Tp2/(self.Mm2*self.heat_capacity_m)-(self.Up1*self.Spm2+self.Ums2*self.Sm2)*self.Tm2\
+        /(self.Mm2*self.heat_capacity_m)+(self.Ums2*self.Sm2*self.Tstat)/(self.Mm2*self.heat_capacity_m)+(self.Tm2-self.Tm1)*\
+        sub_cool_region.DLs1()/(2*(self.length-self.frist_lump_length))
+        
+        return dtdTm2
+    
+    def DTm3(self,sub_cool_region:object):
+
+        dtdTm3=self.Up1*self.Spm2*self.Tp3/(self.Mm2*self.heat_capacity_m)-(self.Up1*self.Spm2+self.Ums2*self.Sm2)*self.Tm3\
+        /(self.Mm2*self.heat_capacity_m)+(self.Ums2*self.Sm2*self.Tstat)/(self.Mm2*self.heat_capacity_m)+(self.Tm3-self.Tm4)*\
+        sub_cool_region.DLs1()/(2*(self.length-self.frist_lump_length))
+        
+        return dtdTm3
+    
+    def DTm4(self,sub_cool_region:object):
+
+        dtdTm4=self.Up1*self.Spm1*self.Tp4/(self.Mm1*self.heat_capacity_m)-\
+        (self.Up1*self.Spm1+self.Ums1*self.Sm1)*self.Tm4/(self.Mm1*self.heat_capacity_m)\
+        +self.Ums1*self.Sm1*(self.Td+self.Tstat)/(2*self.Mm1*self.heat_capacity_m)\
+        -(self.Tm3-self.Tm4)*sub_cool_region.DLs1()/(2*self.frist_lump_length)
+
+    
+    def integrator(self,function,intitial_cond,time_step):
+
+        return function()*time_step+intitial_cond
+
+class SubCooledRegion():
+    def __init__(self) :
+        '''constants'''
+
+        self.area=5.63642501
+        self.density=806.05092
+
+    def DLs1(self,PrimaryLump:object):
+        dtdLs1=(PrimaryLump.W1-PrimaryLump.W2)/(self.area*self.density)
+        return dtdLs1
+    
+    def DTavg(self,PrimaryLump:object,MetalLump:object):
+        pass
+
