@@ -234,22 +234,68 @@ class MetalLump():
         +self.Ums1*self.Sm1*(self.Td+self.Tstat)/(2*self.Mm1*self.heat_capacity_m)\
         -(self.Tm3-self.Tm4)*sub_cool_region.DLs1()/(2*self.frist_lump_length)
 
+        return dtdTm4
+
     
     def integrator(self,function,intitial_cond,time_step):
 
         return function()*time_step+intitial_cond
 
 class SubCooledRegion():
-    def __init__(self) :
+    def __init__(self,Tavg:float) :
         '''constants'''
 
         self.area=5.63642501
         self.density=806.05092
+        self.Cp2=4877.622
+
+        "initial conditions "
+        self.Ls1=1.05017116
+        self.Tavg=Tavg
 
     def DLs1(self,PrimaryLump:object):
         dtdLs1=(PrimaryLump.W1-PrimaryLump.W2)/(self.area*self.density)
         return dtdLs1
     
     def DTavg(self,PrimaryLump:object,MetalLump:object):
+        val=MetalLump.Ums1*PrimaryLump.Pr2*self.Ls1*(MetalLump.Tm1+MetalLump.Tm4-MetalLump.Td-MetalLump.Tstat)+\
+        PrimaryLump.W1*self.Cp2*MetalLump.Td-PrimaryLump.W2*self.Cp2*MetalLump.Tstat
+        dtdTavg=(val-self.density*self.area*self.Cp2*(MetalLump.Td+MetalLump.Tstat)*self.DLs1()/2)\
+                /(self.density*self.area*self.Cp2*self.Ls1)
+        return dtdTavg
+    
+class BoilingRegion():
+    def __init__(self):
+        '''constants '''
+        self.K1= 1.56999 
+        self.K2=-3.047*10**-5
+        self.K3=0.00313
+        self.k4=-0.00362
+        self.K5=3.16*10**-5
+        self.K6=0.05706
+        
+        """user defined value"""
+        self.Xe=0.2 #steam quality 
         pass
 
+a=InletPlenum(530)
+t=0
+dt=1
+T=[]
+Temp=[]
+while t<10000:
+    a.Temperature=a.integrator(a.DT_pi,a.Temperature,dt)
+    t=dt+t
+    Temp.append(a.Temperature)
+    T.append(t)
+
+from matplotlib import animation
+
+
+def ani(i):
+    plt.cla()
+    plt.plot(T[:i],Temp[:i])
+
+ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
+
+plt.show()
