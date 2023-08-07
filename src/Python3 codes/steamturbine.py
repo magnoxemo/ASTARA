@@ -16,14 +16,11 @@ class InletPlenum():
         self.Mass=10000		 
         self.Flow_rate=4964.96
         self.density=732.134 
-        self.Theta=400
-               
+        self.Theta=440          
         self.Temperature=Temperature
-        self.time_const=self.Flow_rate/self.Mass
         
-    def DT_pi(self,reactor:object):
-
-
+    def DT_pi(self):
+        self.time_const=self.Flow_rate/self.Mass
         dtpi=(self.Theta-self.Temperature)*self.time_const
         
         """
@@ -32,7 +29,6 @@ class InletPlenum():
         it will be reactor.T_hotleg
         
         """
-
         return dtpi
     
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
@@ -306,8 +302,10 @@ class SubCooledRegion():
         return dtdLs1
     
     def DTavg(self,PrimaryLump:object,MetalLump:object):
+
         val=MetalLump.Ums1*PrimaryLump.Pr2*self.Ls1*(MetalLump.Tm1+MetalLump.Tm4-MetalLump.Td-MetalLump.Tstat)+\
         PrimaryLump.W1*self.Cp2*MetalLump.Td-PrimaryLump.W2*self.Cp2*MetalLump.Tstat
+
         dtdTavg=(val-self.density*self.area*self.Cp2*(MetalLump.Td+MetalLump.Tstat)*self.DLs1()/2)\
                 /(self.density*self.area*self.Cp2*self.Ls1)
         return dtdTavg
@@ -346,8 +344,8 @@ class BoilingRegion():
 
         self.hf=2156620.16
         self.hfg=2841095.24
-        self.vf=0.59463
-        self.vfg=14.8722
+        self.vf=0.33566
+        self.vfg=8.4100
 
         self.density=217.9291
         """user defined value"""
@@ -396,7 +394,7 @@ class DrumRegion():
         self.area=10.2991
         """user defined value"""
         self.Xe=0.2        #steam quality
-        self.water_level=2.935224
+        self.water_level=2.935224 #Lw
         self.Wpi=4964.96   #hot_leg_flow_rate
         self.Wfi=470.226   #Trubine_outlet
         self.W1=2349.45    #SFSL
@@ -410,7 +408,7 @@ class DrumRegion():
         """initial conditions """
         self.Tw=DrumWaterDTemperature
         self.density=763.51
-        self.water_level=2.935224
+        self.water_level=2.935224 #Ldw
         self.Tfi=FeedWaterTemp
 
         """design parametrs of the DrumRegion """
@@ -460,17 +458,56 @@ class DrumRegion():
             return function(arg1,arg2,arg3)*time_step+intitial_cond  
         else:
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
+        
+class DownComerRegion():
+    def __init__(self,DownComerTemperature:float):  
+        
+        self.area=2.97376
+        self.density=805.645
+        self.Ld=10.8269
+        self.Mass=self.area*self.Ld*self.density
+
+        '''initial conditions '''
 
 
-a=InletPlenum(530)
+        self.Td=DownComerTemperature
+
+    def DTd(self,DrumRegion:object):
+
+        dtdTd=DrumRegion.W1*(DrumRegion.Tw-self.Td)/self.Mass
+        return dtdTd
+    
+    
+    def ConstOnUpdate(self,InletPlenum:object,PrimaryLump:object,MetalLump:object,SubcooledRegion:object,BoilingRegion:object,\
+                            DrumRegion:object,DownCOmerRegion:object):
+        
+        MetalLump.Tstat=BoilingRegion.K5*DrumRegion.Pressure+771.205
+        BoilingRegion.vf=BoilingRegion.K1*DrumRegion.Pressure+6453.186
+        BoilingRegion.vfg=BoilingRegion.K2*DrumRegion.Pressure+0.288335
+        BoilingRegion.density=1/(BoilingRegion.vf+BoilingRegion.vfg*BoilingRegion.Xe/2)
+        DrumRegion.density=1/(BoilingRegion.vf+BoilingRegion.vfg*BoilingRegion.Xe)
+
+        
+
+
+
+
+InletPlenum=InletPlenum(530)
+PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,500,600,700],MetalLumpTemperature=[500,600,600,500],ProutTemperature=450)
+
 t=0
 dt=1
 T=[]
 Temp=[]
+Temp1=[]
+dt=0.01
+
 while t<10000:
-    a.Temperature=a.integrator(a.DT_pi,a.Temperature,dt)
+    InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DT_pi,[],InletPlenum.Temperature,dt)
+    PrimaryLump.Tp1=PrimaryLump.integrator(PrimaryLump.DTp1,argsforfunction=[InletPlenum],intitial_cond=PrimaryLump.Tp1,time_step=dt)
     t=dt+t
-    Temp.append(a.Temperature)
+    Temp.append(PrimaryLump.Tp1)
+    Temp1.append(InletPlenum.Temperature)
     T.append(t)
 
 from matplotlib import animation
@@ -479,10 +516,9 @@ from matplotlib import animation
 def ani(i):
     plt.cla()
     plt.plot(T[:i],Temp[:i])
+    plt.plot(T[:i],Temp1[:i])
 
 ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
 
-plt.show()
-ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
-
+plt.show()gcf(), ani,interval=1)
 plt.show()
