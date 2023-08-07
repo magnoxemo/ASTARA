@@ -35,9 +35,25 @@ class InletPlenum():
 
         return dtpi
     
-    def integrator(self,function,intitial_cond,time_step):
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        return function()*time_step+intitial_cond
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
 
 
 
@@ -145,9 +161,25 @@ class PrimaryLump():
         
         return dtdTp4   
      
-    def integrator(self,function,intitial_cond,time_step):
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        return function()*time_step+intitial_cond
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
 
 class MetalLump():
@@ -237,9 +269,25 @@ class MetalLump():
         return dtdTm4
 
     
-    def integrator(self,function,intitial_cond,time_step):
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        return function()*time_step+intitial_cond
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
 
 class SubCooledRegion():
     def __init__(self,Tavg:float) :
@@ -264,19 +312,155 @@ class SubCooledRegion():
                 /(self.density*self.area*self.Cp2*self.Ls1)
         return dtdTavg
     
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+    
 class BoilingRegion():
     def __init__(self):
-        '''constants '''
+        '''constants --> partial derivative const and enthalpies of
+                                    hf.hg,hfg 
+        '''
         self.K1= 1.56999 
         self.K2=-3.047*10**-5
         self.K3=0.00313
         self.k4=-0.00362
         self.K5=3.16*10**-5
         self.K6=0.05706
-        
+
+        self.hf=2156620.16
+        self.hfg=2841095.24
+        self.vf=0.59463
+        self.vfg=14.8722
+
+        self.density=217.9291
         """user defined value"""
         self.Xe=0.2 #steam quality 
-        pass
+        
+    def DDensityb(self,pressurechangerate:float,steamqualitychangerate:float):
+        dtdroub=-(self.K1+self.K2*self.Xe/2)*(pressurechangerate)/(self.vf+self.Xe*self.vfg/2)**2\
+        -self.vfg*steamqualitychangerate/(2*(self.vf+self.Xe*self.vfg/2)**2)
+        return dtdroub
+
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+    
+class DrumRegion():
+    def __init__(self,DrumWaterDTemperature:float,FeedWaterTemp:float):
+
+        self.K1= 1.56999 
+        self.K2=-3.047*10**-5
+        self.K3=0.00313
+        self.k4=-0.00362
+        self.K5=3.16*10**-5
+        self.K6=0.05706
+
+        self.hf=2156620.16
+        self.hfg=2841095.24
+        self.vf=0.59463
+        self.vfg=14.8722
+
+        self.area=10.2991
+        """user defined value"""
+        self.Xe=0.2        #steam quality
+        self.water_level=2.935224
+        self.Wpi=4964.96   #hot_leg_flow_rate
+        self.Wfi=470.226   #Trubine_outlet
+        self.W1=2349.45    #SFSL
+        self.W2=self.W1
+        self.W3=self.W1
+        self.W4=self.W1
+        #feed water is coming from the feed water pump after condensation 
+        #so after this constructor it will be 
+        #                                              "DrumRegion.Wfi=FeedWaterPump.outlet"
+
+        """initial conditions """
+        self.Tw=DrumWaterDTemperature
+        self.density=763.51
+        self.water_level=2.935224
+        self.Tfi=FeedWaterTemp
+
+        """design parametrs of the DrumRegion """
+
+        self.Vdr=124.28
+        self.Pressure=5850053.972
+        self.Cl=0.12232 #steam valve co efficient needs to be adjusted 
+
+    def DDensityr(self,pressurechangerate,steamqualitychangerate):
+
+        dtdrour=-(self.K1+self.K2*self.Xe)*(pressurechangerate)/(self.vf+self.Xe*self.vfg)**2\
+        -self.vfg*steamqualitychangerate/((self.vf+self.Xe*self.vfg))**2
+        return dtdrour 
+
+    def DLw(self):
+        dtdlw=(self.Wfi-(1-self.Xe)*self.W4-self.W1)/(self.density*self.area)
+
+    def DTw(self,MetalLump:object):
+
+        val=self.Wfi*self.Tfi+(1-self.Xe)*self.W4*MetalLump.Tstat-self.W1*self.Tw 
+        dtdTw=(val-self.density*self.area*self.Tw*self.DLw())/(self.density*self.area*self.water_level)
+
+        return dtdTw
+    
+    def DDensityg(self):
+
+        dtdroug=(self.Xe*self.W4-self.Cl*self.Pressure+self.density*self.area*self.DLw())/(self.Vdr-self.area*self.water_level)
+        return dtdroug
+
+    
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
 
 a=InletPlenum(530)
 t=0
@@ -296,6 +480,9 @@ def ani(i):
     plt.cla()
     plt.plot(T[:i],Temp[:i])
 
+ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
+
+plt.show()
 ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
 
 plt.show()
