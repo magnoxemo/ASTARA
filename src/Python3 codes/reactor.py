@@ -1,7 +1,4 @@
-import numpy as np 
-import matplotlib.pyplot as plt 
-import scipy as sp
-import threading as th
+
 
 """ Reactor modeling """
 
@@ -37,8 +34,8 @@ class CoreInside():
         self.Alpha_f=6.111*10**-6
 
         self.Fr=0.974       #fission power factor 
-        self.Cpf=247.5052   #coolant conductivity 
-        self.Cpc=5819.652   #fuel heat conductivity 
+        self.Cpc=247.5052   #coolant conductivity 
+        self.Cpf=5819.652   #fuel heat conductivity 
         #volumes 
         self.CoolantVcore=15.2911
 
@@ -100,37 +97,41 @@ class CoreInside():
         return dtdTf2
         
     def DTf3(self):
-        dtdTf3=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.Cpf)+self.h*self.area*(self.Tmo1-self.Tf1)/(self.Mf*self.Cpf)
+        dtdTf3=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.Cpf)+self.h*self.area*(self.Tmo5-self.Tf3)/(self.Mf*self.Cpf)
         return dtdTf3
     
     def DTm01(self,LowerPlenum:object):
         dtdTm01=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(LowerPlenum.Tf1-self.Tmo1)+(self.Tlp-self.Tmo1)/self.time_constmo
+            self.h*self.area*(LowerPlenum.Tf1-self.Tmo1)/(self.Mmo*self.Cpc)+(self.Tlp-self.Tmo1)/self.time_constmo
         return dtdTm01 
         
     def DTm02(self):
-        dtdTm02=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(self.Tf1-self.Tmo1)+(self.Tmo1-self.Tmo2)/self.time_constmo
+        dtdTm02=(1-self.Fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
+            self.h*self.area*(self.Tf1-self.Tmo1)/(self.Mmo*self.Cpc)+(self.Tmo1-self.Tmo2)/self.time_constmo
+
         return dtdTm02 
+    
 
     def DTm03(self):
-        dtdTm03=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(self.Tf2-self.Tmo3)+(self.Tmo2-self.Tmo3)/self.time_constmo
+        dtdTm03=(1-self.Fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+self.h*self.area*(self.Tf2-self.Tmo3)/(self.Mmo*self.Cpc)\
+            +(self.Tmo2-self.Tmo3)/self.time_constmo
+        
         return dtdTm03
+    
         
     def DTm04(self):
-        dtdTm04=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(self.Tf2-self.Tmo3)+(self.Tmo3-self.Tmo4)/self.time_constmo
+        dtdTm04=(1-self.Fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
+            self.h*self.area*(self.Tf2-self.Tmo3)/(self.Mmo*self.Cpc)+(self.Tmo3-self.Tmo4)/self.time_constmo
         return dtdTm04
     
     def DTm05(self):
-        dtdTm05=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(self.Tf3-self.Tmo5)+(self.Tmo4-self.Tmo5)/self.time_constmo
+        dtdTm05=(1-self.Fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
+            self.h*self.area*(self.Tf3-self.Tmo5)/(self.Mmo*self.Cpc)+(self.Tmo4-self.Tmo5)/self.time_constmo
         return dtdTm05
         
     def DTm06(self):
-        dtdTm06=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(self.Tf3-self.Tmo5)+(self.Tmo5-self.Tmo6)/self.time_constmo
+        dtdTm06=(1-self.Fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
+            self.h*self.area*(self.Tf3-self.Tmo5)/(self.Mmo*self.Cpc)+(self.Tmo5-self.Tmo6)/self.time_constmo
         return dtdTm06
     
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
@@ -292,17 +293,56 @@ class LowerPlenum():
 
 
 
-ReactorCore=CoreInside(TemperatureFuel=[500,600,700],TemperatureModerator=[450,475,500,550,600,700],Power=1234,Precursor=.1)
+ReactorCore=CoreInside(TemperatureFuel=[5012,844,700],TemperatureModerator=[500,505,500,550,500,534300],Power=1214,Precursor=.1)
 t=0
 dt=0.01
 Time=[]
 Temp=[]
-while t<1000:
 
-    ReactorCore.Tf1=ReactorCore.integrator(ReactorCore.DTf1,[],ReactorCore.Tf1,time_step=dt)
-    ReactorCore.Tf2=ReactorCore.integrator(ReactorCore.DTf2,[],ReactorCore.Tf2,time_step=dt)
-    ReactorCore.Tf3=ReactorCore.integrator(ReactorCore.DTf3,[],ReactorCore.Tf3,time_step=dt)
-  
-    print(ReactorCore.Tf1,' ',ReactorCore.Tf2,' ',ReactorCore.Tf3)
+
+print('          #                      #       ')
+print("         ####                  ####      ")
+print('        $$$$$$                $$$$$$     ')
+print('      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ')
+print('    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('  %%%%%%%%@@@%%%%%%%%%%%%%%%%%%@@@%%%%%%%%%')
+print('%%%%%%%@@@@@@@@%%%%%%%%%%%%%%@@@@@@@@%%%%%%%%')
+print('%%%%%%%%@@@@@@%%%%%%%%%%%%%%%%@@@@@@%%%%%%%%%')
+print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print(' %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ')
+print('         %%%%%%%%%%%%%%%%%%%%%%%%%%%')
+print('             %%%%%%%%%%%%%%%%%%%%%')
+print('                 A   Z   O   G')
+print('    A Nuclear Power Plant Simulation code  ')
+
+print('\n')
+print('Tf1    ',"  ", "Tf2","  "," Tf3")
+while t<1430:
+
+    Tf1=ReactorCore.integrator(ReactorCore.DTf1,[],ReactorCore.Tf1,time_step=dt)
+    Tf2=ReactorCore.integrator(ReactorCore.DTf2,[],ReactorCore.Tf2,time_step=dt)
+    Tf3=ReactorCore.integrator(ReactorCore.DTf3,[],ReactorCore.Tf3,time_step=dt)
+
+    Tmo2=ReactorCore.integrator(ReactorCore.DTm02,[],ReactorCore.Tmo2,time_step=dt)
+    Tmo3=ReactorCore.integrator(ReactorCore.DTm03,[],ReactorCore.Tmo3,time_step=dt)
+    Tmo4=ReactorCore.integrator(ReactorCore.DTm04,[],ReactorCore.Tmo4,time_step=dt)
+    Tmo5=ReactorCore.integrator(ReactorCore.DTm05,[],ReactorCore.Tmo5,time_step=dt)
+    Tmo6=ReactorCore.integrator(ReactorCore.DTm06,[],ReactorCore.Tmo6,time_step=dt)
+
+    ReactorCore.Tf1=Tf1
+    ReactorCore.Tf2=Tf2
+    ReactorCore.Tf3=Tf3
+    ReactorCore.Tmo2=Tmo2
+    ReactorCore.PowerRatio=1
+    ReactorCore.Tmo3=Tmo3
+    t=t+dt
+
+    print(Tf1,' ',Tf2,' ',Tf3)
 
 #Done 
