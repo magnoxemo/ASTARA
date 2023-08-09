@@ -6,8 +6,7 @@ import threading as th
 """ Reactor modeling """
 
 class CoreInside():
-    def __init__(self,TemperatureFuel:list,TemperatureModerator:list,Power:float,Precursor:float,TempHotLeg:float\
-                 ,TempColdLeg:float,TempUpperPlenum:float,TempLowerPlenum:float,TempPrimaryInlet:float):
+    def __init__(self,TemperatureFuel:list,TemperatureModerator:list,Power:float,Precursor:float):
         self.diameter=36.2712
         self.core_height=43.8912
         self.CoolantDensity=732.18278
@@ -41,11 +40,6 @@ class CoreInside():
         self.Cpf=247.5052   #coolant conductivity 
         self.Cpc=5819.652   #fuel heat conductivity 
         #volumes 
-
-        self.CoolantVup=38.9813
-        self.CoolantVlp=50.7091
-        self.CoolantVhl=28.3168
-        self.CoolantVcl=56.63369
         self.CoolantVcore=15.2911
 
         self.FuelMass=101032.711
@@ -73,33 +67,21 @@ class CoreInside():
             self.Tmo5=TemperatureModerator[4]
             self.Tmo6=TemperatureModerator[5]
 
-        self.Thl=TempHotLeg
-        self.Tcl=TempColdLeg
-        self.Tpo=TempPrimaryInlet
-        self.Tup=TempUpperPlenum
-        self.Tlp=TempLowerPlenum
-
         """ necessary calculations """
         """mass"""
         self.Mf=self.FuelMass/3 #as there will three lumps 
-        self.Mmo=self.CoolantVup*self.CoolantDensity /3 #as there will three lumps 
-        self.Mlp=self.CoolantVlp*self.CoolantDensity
-        self.Mup=self.CoolantVup*self.CoolantDensity
-        self.Mhl=self.CoolantVhl*self.CoolantDensity
-        self.Mcl=self.CoolantVcl*self.CoolantDensity
+        self.Mmo=self.CoolantVcore*self.CoolantDensity /3 
+
         """time const"""
         self.time_constmo=self.Mmo/(self.Wc*2)
-        self.time_constlp=self.Mlp/self.Wc
-        self.time_constup=self.Mup/self.Wc
-        self.time_consthl=self.Mhl/self.Wc
-        self.time_constcl=self.Mcl/self.Wc
+
         self.Lamda=self.total_delayed_const/(self.Beta1/self.Lamda1+self.Beta2/self.Lamda2+self.Beta3/self.Lamda3+self.Beta4/self.Lamda4\
                                              +self.Beta5/self.Lamda5+self.Beta6/self.Lamda6)
         
-    def Reacivity(self):
+    def Reacivity(self,FuelTemp:list,ModeratorTemp:list):
         
-        self.Reactivity=self.ExternalReactivity+self.Alpha_f*(self.Tf1+self.Tf2+self.Tf3-self.Tf10-self.Tf20-self.Tf30)/3\
-(self.Tmo1+self.Tmo2+self.Tmo3+self.Tmo4+self.Tmo5+self.Tmo6-(self.Tmo10+self.Tmo20+self.Tmo30+self.Tmo40+self.Tmo5+self.Tmo60))
+        self.Reactivity=self.ExternalReactivity+self.Alpha_f*(self.Tf1+self.Tf2+self.Tf3-sum(FuelTemp))/3\
+                        +(self.Tmo1+self.Tmo2+self.Tmo3+self.Tmo4+self.Tmo5+self.Tmo6-sum(ModeratorTemp))
     
     def DPowerRatio(self):
         dtdPP0=(self.Reacivity()-self.total_delayed_const)*self.PowerRatio/self.NGT+self.Lamda*self.Precursor
@@ -110,20 +92,20 @@ class CoreInside():
         return dtdc
         
     def DTf1(self):
-        dtdTf1=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.cpf)+self.h*self.area*(self.Tmo1-self.Tf1)
+        dtdTf1=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.Cpf)+self.h*self.area*(self.Tmo1-self.Tf1)/(self.Mf*self.Cpf)
         return dtdTf1
         
     def DTf2(self):
-        dtdTf2=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.cpf)+self.h*self.area*(self.Tmo3-self.Tf2)
+        dtdTf2=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.Cpf)+self.h*self.area*(self.Tmo3-self.Tf2)/(self.Mf*self.Cpf)
         return dtdTf2
         
     def DTf3(self):
-        dtdTf3=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.cpf)+self.h*self.area*(self.Tmo1-self.Tf1)
+        dtdTf3=self.Fr*self.NominalPower*self.PowerRatio/(self.Mf*self.Cpf)+self.h*self.area*(self.Tmo1-self.Tf1)/(self.Mf*self.Cpf)
         return dtdTf3
     
-    def DTm01(self):
+    def DTm01(self,LowerPlenum:object):
         dtdTm01=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
-            self.h*self.area*(self.Tf1-self.Tmo1)+(self.Tlp-self.Tmo1)/self.time_constmo
+            self.h*self.area*(LowerPlenum.Tf1-self.Tmo1)+(self.Tlp-self.Tmo1)/self.time_constmo
         return dtdTm01 
         
     def DTm02(self):
@@ -150,3 +132,177 @@ class CoreInside():
         dtdTm06=(1-self.fr)*self.NominalPower*self.PowerRatio/(self.Mmo*self.Cpc)+\
             self.h*self.area*(self.Tf3-self.Tmo5)+(self.Tmo5-self.Tmo6)/self.time_constmo
         return dtdTm06
+    
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+    
+class Hotleg():
+    def __init__(self,TempHotLeg:float):
+        self.Thl=TempHotLeg
+        self.CoolantVhl=28.3168
+        self.Wc=18899.68208  
+        self.CoolantDensity=732.18278
+        self.Mhl=self.CoolantVhl*self.CoolantDensity
+        self.time_consthl=self.Mhl/self.Wc
+
+    def DThl(self,UpperPlenum:object):
+
+        dtdThl=(UpperPlenum.Tup-self.Thl)/self.time_consthl
+        return dtdThl
+
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
+
+class ColdLeg():
+    def __init__(self,TempColdLeg:float) -> None:
+        self.Tcl=TempColdLeg
+        self.Wc=18899.68208  
+        self.CoolantDensity=732.18278
+        self.CoolantVcl=56.63369
+        self.Mcl=self.CoolantVcl*self.CoolantDensity
+        self.time_constcl=self.Mcl/self.Wc
+
+    def DTcl(self,TempRCPexit:float):
+        """temperature exit will accessed through objects. but right now it's initilized as 
+        a float data type """
+        dtdTcl=(TempRCPexit-self.Tcl)/self.time_constcl
+        return dtdTcl
+    
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+    
+class UpperPlenum():
+    def __init__(self,TempUpperPlenum:float):
+        self.Tup=TempUpperPlenum
+        self.Wc=18899.68208  
+        self.CoolantDensity=732.18278
+        self.CoolantVup=38.9813
+        self.Mup=self.CoolantDensity*self.CoolantVup
+        self.time_constup=self.Mup/self.Wc
+
+    def DTup(self,ReactorCoreInside:object):
+        dtdTup=(ReactorCoreInside.Tmo6-self.Tup)/self.time_constup
+        return dtdTup
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+        
+
+
+class LowerPlenum():
+    def __init__(self,TempLowerPlenum:float):
+        self.Tlp=TempLowerPlenum
+        self.Wc=18899.68208  
+        self.CoolantDensity=732.18278
+        self.CoolantVlp=50.7091
+        self.Mlp=self.CoolantVlp*self.CoolantDensity
+        self.time_constlp=self.Mlp/self.Wc
+
+    def DTlp(self,ColdLeg:object):
+        dtdTlp=(ColdLeg.Tcl-self.Tlp)/self.time_constlp
+        return dtdTlp
+    
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
+
+
+ReactorCore=CoreInside(TemperatureFuel=[500,600,700],TemperatureModerator=[450,475,500,550,600,700],Power=1234,Precursor=.1)
+t=0
+dt=0.01
+Time=[]
+Temp=[]
+while t<1000:
+
+    ReactorCore.Tf1=ReactorCore.integrator(ReactorCore.DTf1,[],ReactorCore.Tf1,time_step=dt)
+    ReactorCore.Tf2=ReactorCore.integrator(ReactorCore.DTf2,[],ReactorCore.Tf2,time_step=dt)
+    ReactorCore.Tf3=ReactorCore.integrator(ReactorCore.DTf3,[],ReactorCore.Tf3,time_step=dt)
+  
+    print(ReactorCore.Tf1,' ',ReactorCore.Tf2,' ',ReactorCore.Tf3)
+
+#Done 
