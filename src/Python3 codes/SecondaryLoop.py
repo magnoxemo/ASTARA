@@ -92,7 +92,7 @@ class NozzleChest():
         self.Whp1=self.Kchp*np.sqrt(self.Pc*self.rou_c-Reheater.Pressue*HighPressureTurbine.rou_exit)
     
     def P_c(self):
-        self.Pc=self.rou_c*(self.k1*self.hc-self.k2)
+        self.Pc=PropsSI("P","T",self.SteamTempatChest,'Q',0,'water')
     
     def Dh_c(self,ThrottleValve:object):
         self.Wmain=ThrottleValve.Wm
@@ -158,86 +158,80 @@ class MoistureSeperator():
 
 class Reheater():
     
-    class MainSteam():
-        def __init__(self,MoistureSpererator:object,VolumeOftheReheater:float):
+    def __init__(self,MoistureSpererator:object,VolumeOftheReheater:float,time_const_flowrate:float,time_const_heating:float,
+                    flow_rate_to_2nd_heater:float,Heater_temp:float,heat_transfer_coefficient:float,
+                    Gas_const:float,Throttlechestflowrate:float):
             #self.W_mss=MoistureSeperator.W_mss
 
-            self.hr=2920.2e3         #enthalpy at the steam reheater exit 
-            self.Vr=VolumeOftheReheater
-            self.Density=2.4
-            self.Heat=4.365e7      #reheater heat 
-            self.Temperature=PropsSI('T','D',self.Density,"Q",1,"water")
-            self.hmss=PropsSI("H","T",self.Temperature,'Q',0,'water')
-            self.Pressure=PropsSI("P","T",self.Temperature,'Q',0,'water')
-            self.Kclp=0.12
-            self.Wlp=self.Kclp*np.sqrt(self.Pressure*self.Density)
-            self.k1=0.01
+        self.hr=2920.2e3         #enthalpy at the steam reheater exit 
+        self.Vr=VolumeOftheReheater
+        self.Density=2.4
+        self.Heat=4.365e7      #reheater heat 
+        self.Temperature=PropsSI('T','D',self.Density,"Q",1,"water")
+        self.hmss=PropsSI("H","T",self.Temperature,'Q',0,'water')
+        self.Pressure=PropsSI("P","T",self.Temperature,'Q',0,'water')
+        self.Kclp=0.12
+        self.Wlp=self.Kclp*np.sqrt(self.Pressure*self.Density)
+        self.k1=0.01
+
+        self.w_2nd=Throttlechestflowrate
+        self.W_ro=flow_rate_to_2nd_heater #for initial_cond
+
+        self.tau_1=time_const_flowrate
+        self.tau_2=time_const_heating
+        self.T_steam=self.Temperature
+        self.T_r=Heater_temp
+
+        self.H=heat_transfer_coefficient
+        self.R=Gas_const
 
         
             
-        def DDensity (self):
-            dtdDensity=(MoistureSeperator.W_mss-self.Wlp)/self.Vr
-            return dtdDensity
+    def DDensity (self):
+        dtdDensity=(MoistureSeperator.W_mss-self.Wlp)/self.Vr
+        return dtdDensity
         
-        def Dhr(self):
-            dtdhr=(((self.Heat+MoistureSeperator.W_mss*self.hmss-self.Wlp*self.hr)/(self.Density*self.Vr))\
+    def Dhr(self):
+        dtdhr=(((self.Heat+MoistureSeperator.W_mss*self.hmss-self.Wlp*self.hr)/(self.Density*self.Vr))\
             +(self.Pressure*(MoistureSeperator.W_mss-self.Wlp)/(self.Density**2*self.Vr)))*(1/(1-self.k1))
         
-            return dtdhr
+        return dtdhr
+    
+    def DWro(self):
+
+        dtdWro=(self.w_2nd-self.W_ro)/self.tau_1
+
+        return dtdWro
         
-        def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-            l=len(argsforfunction)
+    def DQr(self):
 
-            if l==0:
-                return function()*time_step+intitial_cond
-            elif l==1:
-                arg1=argsforfunction[0]
-                return function(arg1)*time_step+intitial_cond  
-            elif l==2:
-                arg1=argsforfunction[0]
-                arg2=argsforfunction[1]
-                return function(arg1,arg2)*time_step+intitial_cond
-            elif l==3:
-                arg1=argsforfunction[0]
-                arg2=argsforfunction[1]
-                arg3=argsforfunction[2]
-                return function(arg1,arg2,arg3)*time_step+intitial_cond  
-            else:
-                raise   AttributeError("agrs in your differential function were not correct! Fix them")
-            
+        dtdQr=((self.T_steam-self.T_r)*(self.w_2nd+self.W_ro)*self.H-2*self.Q)/(2*self.tau_2)
+        self.T_r=self.P/(self.R*self.rou_r)
 
-
-        '''there are no differential eq in the MoistureSeperator 
-         
-          bug fixing done to this one '''
+        return dtdQr
         
-    class Reheater_steam():
-        def __init__(self,pressure:float,time_const_flowrate:float,time_const_heating:float,
-                    flow_rate_to_2nd_heater:float,steam_temp:float,Heater_temp:float,
-                    Heat:float,heat_transfer_coefficient:float,Gas_const:float):
-            self.Pressue=pressure
-            self.w_2nd=ThrottleValve.W_2nd
-            self.tau_1=time_const_flowrate
-            self.tau_2=time_const_heating
-            self.W_ro=flow_rate_to_2nd_heater #for initial_cond
-            self.T_steam=steam_temp
-            self.T_r=Heater_temp
-            self.Q=Heat
-            self.H=heat_transfer_coefficient
-            self.R=Gas_const
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        def _dwro(self):
-
-            Dwro=(self.w_2nd-self.W_ro)/self.tau_1
-
-            return Dwro
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
         
-        def _dQr(self):
 
-            dQr=((self.T_steam-self.T_r)*(self.w_2nd+self.W_ro)*self.H-2*self.Q)/(2*self.tau_2)
-            self.T_r=self.P/(self.R*self.rou_r)
-
-            return dQr
+""" modeling is done till this one. HP,LP remains to be coded """
         
 
 
@@ -293,4 +287,6 @@ class HighPressureHeater():
 
 class LowPressureHeater():
     def __init__(self):
+        pass
+
         pass
