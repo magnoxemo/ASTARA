@@ -1,4 +1,4 @@
-import CoolProp.CoolProp as CP
+from CoolProp.CoolProp import PropsSI
 import numpy as np
 
 class Turbine():
@@ -40,7 +40,7 @@ class ThrottleValve():
 
         """
         
-        self.h_s=CP.PropSI("H",'T',self.SteamTemp,'P',self.SteamPressure,'water')
+        self.h_s=PropsSI("H",'T',self.SteamTemp,'P',self.SteamPressure,'water')
 
         """ control elements """
         if ((pos_main_valve >100 and pos_main_valve<0) or( pos_second_valve>100 and pos_second_valve<0)):
@@ -78,14 +78,14 @@ class NozzleChest():
 
         self.SteamTemp=265              #temperature will be in Kelvin
         self.SteamPressure=5e6           
-        self.h_sd=CP.PropSI("H",'T',self.SteamTemp,'P',self.SteamPressure,'water')
+        self.h_sd=PropsSI("H",'T',self.SteamTemp,'P',self.SteamPressure,'water')
          #enthalpy of the steam drum 
 
         self.Pc=steam_pressure_chest
         self.SteamTempatChest=TempatNozzleChest
         self.Vc=Effective_volume_of_nozzle_Chest
-        self.hc=CP.PropSI("H",'T',self.SteamTempatChest,'P',self.Pc,'water') 
-        self.rou_c=CP.PropSI("D",'T',self.SteamTempatChest,'P',self.Pc,'water')
+        self.hc=PropsSI("H",'T',self.SteamTempatChest,'P',self.Pc,'water') 
+        self.rou_c=PropsSI("D",'T',self.SteamTempatChest,'P',self.Pc,'water')
         
         
     def Whp(self,Reheater:object,HighPressureTurbine:object):
@@ -105,6 +105,26 @@ class NozzleChest():
         self.Wmain=ThrottleValve.Wm
         dtdrou_c=(self.Wmain-self.Whp1)/self.Vc
         return dtdrou_c
+
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
     ''' As we can get the transient feed back of the enthalpy and pressure and density 
     we can find out the temperature of the steam using cool prop properties '''
@@ -115,14 +135,12 @@ class MoistureSeperator():
     def __init__(self,enthalpy_hpex:float,flow_rate_of_the_steam_from_the_steamseperator:float,
                  Temperature:float):
                 
-        
-        #
 
-        self.Whpex=flow_rate_of_the_steam_from_the_steamseperator
+        self.Whpex=flow_rate_of_the_steam_from_the_steamseperator #229.2 kg/s 
         self.Temp=Temperature
         self.h_hpex=enthalpy_hpex
-        self.hf=CP.PropsSI("H",'T',self.Temp,'Q',0,'water')
-        self.hg=CP.PropsSI("H",'T',self.Temp,'Q',1,'water')
+        self.hf=PropsSI("H",'T',self.Temp,'Q',0,'water')
+        self.hg=PropsSI("H",'T',self.Temp,'Q',1,'water')
         self.hfg=self.hg-self.hf
 
         #variable
@@ -136,13 +154,63 @@ class MoistureSeperator():
     def Wmss(self):
         self.W_mss=(self.h_hpex-self.hf)*self.Whpex/(self.hfg)  #that will go to the reheater 
 
-        '''there are no differential eq in the MoistureSeperator 
-         
-          bug fixing done to this one '''
 
 
 class Reheater():
+    
+    class MainSteam():
+        def __init__(self,MoistureSpererator:object,VolumeOftheReheater:float):
+            #self.W_mss=MoistureSeperator.W_mss
 
+            self.hr=2920.2e3         #enthalpy at the steam reheater exit 
+            self.Vr=VolumeOftheReheater
+            self.Density=2.4
+            self.Heat=4.365e7      #reheater heat 
+            self.Temperature=PropsSI('T','D',self.Density,"Q",1,"water")
+            self.hmss=PropsSI("H","T",self.Temperature,'Q',0,'water')
+            self.Pressure=PropsSI("P","T",self.Temperature,'Q',0,'water')
+            self.Kclp=0.12
+            self.Wlp=self.Kclp*np.sqrt(self.Pressure*self.Density)
+            self.k1=0.01
+
+        
+            
+        def DDensity (self):
+            dtdDensity=(MoistureSeperator.W_mss-self.Wlp)/self.Vr
+            return dtdDensity
+        
+        def Dhr(self):
+            dtdhr=(((self.Heat+MoistureSeperator.W_mss*self.hmss-self.Wlp*self.hr)/(self.Density*self.Vr))\
+            +(self.Pressure*(MoistureSeperator.W_mss-self.Wlp)/(self.Density**2*self.Vr)))*(1/(1-self.k1))
+        
+            return dtdhr
+        
+        def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+            l=len(argsforfunction)
+
+            if l==0:
+                return function()*time_step+intitial_cond
+            elif l==1:
+                arg1=argsforfunction[0]
+                return function(arg1)*time_step+intitial_cond  
+            elif l==2:
+                arg1=argsforfunction[0]
+                arg2=argsforfunction[1]
+                return function(arg1,arg2)*time_step+intitial_cond
+            elif l==3:
+                arg1=argsforfunction[0]
+                arg2=argsforfunction[1]
+                arg3=argsforfunction[2]
+                return function(arg1,arg2,arg3)*time_step+intitial_cond  
+            else:
+                raise   AttributeError("agrs in your differential function were not correct! Fix them")
+            
+
+
+        '''there are no differential eq in the MoistureSeperator 
+         
+          bug fixing done to this one '''
+        
     class Reheater_steam():
         def __init__(self,pressure:float,time_const_flowrate:float,time_const_heating:float,
                     flow_rate_to_2nd_heater:float,steam_temp:float,Heater_temp:float,
@@ -171,9 +239,7 @@ class Reheater():
 
             return dQr
         
-    class MainSteam():
-        def __init__(self):
-            pass
+
 
 class HighPressureTurbine():
     def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
@@ -220,3 +286,11 @@ class LowPressureTurbine():
     def _wbhp(self):
 
         self.wbhp=self.C*self.Wlp_in
+
+class HighPressureHeater():
+    def __init__(self):
+        pass
+
+class LowPressureHeater():
+    def __init__(self):
+        pass
