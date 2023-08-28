@@ -231,62 +231,128 @@ class Reheater():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
         
 
-""" modeling is done till this one. HP,LP remains to be coded """
-        
-
 
 class HighPressureTurbine():
-    def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
-                 exit_flow_rate_to_MS:float,exit_flow_rate_to_heater:float,
+    def __init__(self,inlet_flow_rate:float,PressureIn:float,PressureOut:float,
                  time_const:float,HP_co_efficient:float) :
         
-        self.rou_exit=exit_steam_density
-        self.Whpex=exit_flow_rate_to_MS
-        self.Wbhp=exit_flow_rate_to_heater
+        self.Whpin=inlet_flow_rate
+        self.PressureIN=PressureIn
+        self.PressureOUT=PressureOut
+        self.Whpex=(1-self.C)*self.Whpin
+        self.WhpexMax=299.2
+        self.Wbhp=self.C*self.Whpin
         self.Tau=time_const
-        self.Whp_in=inlet_flow_rate
+        self.Ws=self.Wbhp
+        self.EfficiencyCorrectionFactor=0.01
+        self.Efficiency=0.86
+
+        self.Hc=PropsSI("H","P",self.PressureIN,'Q',1,'water')
+        self.Hex=PropsSI("H","P",self.PressureOUT,'Q',0.9,'water')
+        
         self.C=HP_co_efficient
 
     def DWhpex(self):
 
-        dtdWhpex=((self.Whp_in-self.W_bhp)-self.W_hpex)/self.Tau
+        dtdWhpex=((self.Whpin-self.Wbhp)-self.Whpex)/self.Tau
+        self.Wbhp=self.C*self.Whpin
 
         return dtdWhpex
     
-    def _wbhp(self):
+    def StageEfficiency(self):
+        self.neu=self.Efficiency*((self.Whpex/self.WhpexMax)-self.EfficiencyCorrectionFactor)\
+        /((self.Whpex/self.WhpexMax)+1-self.EfficiencyCorrectionFactor)
 
-        self.wbhp=self.C*self.Whp_in
+    def Torque(self):
+
+        self.Torqu =self.neu*self.Whpin*(self.Hc-self.Hex)/(2*np.pi**2*120)
+        #as the angular frequency is 120pi
+
+
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
+
+        
          
     
 
 class LowPressureTurbine():
-    def __init__(self,exit_steam_density:float,inlet_flow_rate:float,
-                 exit_flow_rate_to_MS:float,exit_flow_rate_to_heater:float,
+    def __init__(self,inlet_flow_rate:float,
+                 exit_flow_rate_to_MS:float,PressureIN:float,PressureOUT:float,
                  time_const:float,LP_co_efficient:float) :
         
-        self.rou_exit=exit_steam_density
-        self.W_lpex=exit_flow_rate_to_MS    #goes to the condenser 
-        self.W_blp=exit_flow_rate_to_heater #goes to the heater 
-        self.Tau=time_const
-        self.Wlp_in=inlet_flow_rate         #this comes from the moisture seperator and reheater
+
+        self.Wlpex=exit_flow_rate_to_MS   #goes to the condenser 
+        self.WlpexMax=238.8
+        self.Wlpin=inlet_flow_rate  
+        self.PressureIN=PressureIN
+        self.PressureOUT=PressureOUT
+        self.C=LP_co_efficient#goes to the heater 
+        self.Wblp=self.C*self.Wlpin
+        self.Tau=time_const       #this comes from the moisture seperator and reheater
         self.C=LP_co_efficient
+        self.EfficiencyCorrectionFactor=0.01
+        self.Efficiency=0.86
+
+        self.Hc=PropsSI("H","P",self.PressureIN,'Q',1,'water')
+        self.Hex=PropsSI("H","P",self.PressureOUT,'Q',0.9,'water')
     
-    def _dwhpex(self):
+    def DWhpex(self):
 
-        Dwlpex=((self.Wlp_in-self.W_blp)-self.W_lpex)/self.Tau
+        dtdwlpex=((self.Wlpin-self.Wblp)-self.Wlpex)/self.Tau
+        self.Wblp=self.C*self.Wlpin
 
-        return Dwlpex
+        return dtdwlpex
     
-    def _wbhp(self):
+    def StageEfficiency(self):
+        self.neu=self.Efficiency*((self.Wlpex/self.WlpexMax)-self.EfficiencyCorrectionFactor)\
+        /((self.Wlpex/self.WlpexMax)+1-self.EfficiencyCorrectionFactor)
 
-        self.wbhp=self.C*self.Wlp_in
+    def Torque(self):
+
+        self.Torqu =self.neu*self.Wlpin*(self.Hc-self.Hex)/(2*np.pi**2*120)
+        #as the angular frequency is 120pi
+
+class LowPressureHeater():
+    def __init__(self,FeedWaterFlowRate:float,ExitFlowRateHP:float,ExitFlowRateMS:float,ExitFlowRateRH:float,
+                 timeConst1:float,timeconst2:float,PressureCondenser:float,TemperatureCondenser:float):
+        
+        self.Hco=PropsSI("H","P",PressureCondenser,"T",TemperatureCondenser)
+        self.Hfw=425.4
+        self.Wfw=FeedWaterFlowRate
+        self.Wblp=ExitFlowRateHP
+        self.Wmsw=ExitFlowRateMS
+        self.Wro=ExitFlowRateRH
+        self.timeconst1=timeConst1
+        self.timeconst2=timeconst2
+        self.H=1.339e6
+    
+    def Dhfw(self):
+        dtdhfw=self.H*(self.Wblp+self.Wmsw+self.ro)/(self.timeconst1*self.Wfw)+(self.Hco-self.Hfw)/self.timeconst1
+        return dtdhfw
+    def DWhpd(self):
+        dtdWhpd=(self.Whp-self.Wmsw+self.Wro+self.Whpd)
+        """modeling done till this"""
+        """ modeling is done till this one. HPH LPH remains to be coded """
 
 class HighPressureHeater():
     def __init__(self):
-        pass
-
-class LowPressureHeater():
-    def __init__(self):
-        pass
-
         pass
