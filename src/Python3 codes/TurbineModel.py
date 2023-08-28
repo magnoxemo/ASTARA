@@ -311,6 +311,7 @@ class LowPressureTurbine():
         self.C=LP_co_efficient
         self.EfficiencyCorrectionFactor=0.01
         self.Efficiency=0.86
+        self.omega=120*np.pi
 
         self.Hc=PropsSI("H","P",self.PressureIN,'Q',1,'water')
         self.Hex=PropsSI("H","P",self.PressureOUT,'Q',0.9,'water')
@@ -327,8 +328,8 @@ class LowPressureTurbine():
         /((self.Wlpex/self.WlpexMax)+1-self.EfficiencyCorrectionFactor)
 
     def Torque(self):
-
-        self.Torqu =self.neu*self.Wlpin*(self.Hc-self.Hex)/(2*np.pi**2*120)
+        
+        self.Torqu =self.neu*self.Wlpin*(self.Hc-self.Hex)/(2*np.pi*self.omega)
         #as the angular frequency is 120pi
 
 class LowPressureHeater():
@@ -350,9 +351,64 @@ class LowPressureHeater():
         return dtdhfw
     def DWhpd(self):
         dtdWhpd=(self.Whp-self.Wmsw+self.Wro+self.Whpd)
-        """modeling done till this"""
-        """ modeling is done till this one. HPH LPH remains to be coded """
+
+        return dtdWhpd
+
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
 
 class HighPressureHeater():
-    def __init__(self):
-        pass
+    def __init__(self,FeedWaterFlowRate:float,Whpd:float,ExitFlowRatelp:float,ExitFlowRateRH:float,
+                 timeConst:float,PressureCondenser:float,TemperatureCondenser:float):
+        
+        self.Hco=PropsSI("H","P",PressureCondenser,"T",TemperatureCondenser)
+        self.Hfw=425.4
+        self.Wfw=FeedWaterFlowRate
+        self.Wblp=ExitFlowRatelp
+        self.Whpd=Whpd
+        self.timeconst=timeConst
+        self.H=1.339e6
+    
+    def Dhfw(self):
+        dtdhfw=self.H*(self.Whpd+self.Wblp)/(self.timeconst*self.Wfw)+(self.Hco-self.Hfw)/self.timeconst
+        return dtdhfw
+   
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
+
+#modeling done
