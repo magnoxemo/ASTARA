@@ -1,27 +1,53 @@
 import numpy as np
 import matplotlib.pyplot as plt 
-import threading 
-import scipy as sp
+from CoolProp.CoolProp import PropsSI
+
+
+def logo():
+
+	print('          #                      #       ')
+	print("         ####                  ####      ")
+	print('        $$$$$$                $$$$$$     ')
+	print('      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ')
+	print('    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('  %%%%%%%%@@@%%%%%%%%%%%%%%%%%%@@@%%%%%%%%%')
+	print('%%%%%%%@@@@@@@@%%%%%%%%%%%%%%@@@@@@@@%%%%%%%%')
+	print('%%%%%%%%@@@@@@%%%%%%%%%%%%%%%%@@@@@@%%%%%%%%%')
+	print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print(' %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ')
+	print('         %%%%%%%%%%%%%%%%%%%%%%%%%%%')
+	print('             %%%%%%%%%%%%%%%%%%%%%')
+	print('                 A   Z   O   G')
+	print('    A Nuclear Power Plant Simulation code  ')
+		
 
 class InletPlenum():
     
-    def __init__(self,Temperature:float):
+    def __init__(self,Temperature:float,pressure:float):
         """
         
         Mass     ---> stays in the pipe under steady state conditions
         Flow_rate---> hot_leg_flow_rate
         Theta    ---> temperature of the hot leg water 
+        Pressure--> Reactor Pressure
         
         """
-        self.Mass=10000		 
-        self.Flow_rate=4964.96
-        self.density=732.134 
-        self.Theta=440          
+        self.Mass=10000
         self.Temperature=Temperature
+        self.Pressure=pressure		 
+        self.Flow_rate=4964.96
+        self.density=PropsSI("D","T",self.Temperature,'P',self.Pressure,'water') 
+        self.Theta=440          
         
-    def DT_pi(self):
+    def DTpi(self):
         self.time_const=self.Flow_rate/self.Mass
-        dtpi=(self.Theta-self.Temperature)*self.time_const
+        dtdTpi=(self.Theta-self.Temperature)*self.time_const
         
         """
         self.theta=reactor.T_hotleg
@@ -29,7 +55,7 @@ class InletPlenum():
         it will be reactor.T_hotleg
         
         """
-        return dtpi
+        return dtdTpi
     
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
         l=len(argsforfunction)
@@ -55,20 +81,48 @@ class InletPlenum():
 
 class PrimaryLump():
 
-    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,ProutTemperature:float):
+    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,ProutTemperature:float,Pressure:float):
+        """
+        initial conditions (as this constructor will only run once)
+        PrimaryLumpTemperature will carry the initial condition for 4 primary lumps
+        MetalLumpTemperature will carry the initial condition for 4 metal lumps as per model
+        MetalLumpTemperature will be initialized in the Metal lump object
+        """ 
+        if len(PrimaryLumpTemperature)!=4:
+            raise ValueError(" Initial condition error!")
+        else:
+            self.Tp1=PrimaryLumpTemperature[0]
+            self.Tp2=PrimaryLumpTemperature[1]
+            self.Tp3=PrimaryLumpTemperature[2]
+            self.Tp4=PrimaryLumpTemperature[3]
 
-        self.number_of_utube=3383
-        self.inner_diameter=0.019685
-        self.outer_diameter=0.022225
-        self.density=732.134 
-        self.length=10.831712
-        self.frist_lump_length=1.05017116
-        self.heat_capacity_1=5819.652
+        if len(MetalLumpTemperature)!=4:
+            raise ValueError(" Initial condition error!")
+        else:
+            self.Tm1=MetalLumpTemperature[0]
+            self.Tm2=MetalLumpTemperature[1]
+            self.Tm3=MetalLumpTemperature[2]
+            self.Tm4=MetalLumpTemperature[3]
+
+        self.Tpo=ProutTemperature
+        self.Pressure=Pressure #Reactor Pressure or Pressure at the pressurizer
+
+        self.Tavg=np.sum(PrimaryLumpTemperature)/len(PrimaryLumpTemperature)
+        self.heat_capacity_1=PropsSI("C",'T',self.Tavg,'P',self.Pressure,'water')
+        self.density=PropsSI("D",'T',self.Tavg,'P',self.Pressure,'water')
+
+        ''' the heat capacity and the density needs to be constantly updated based on the temperature and the 
+        pressure '''
 
         self.Primary_side_flim_conductance=25563
         self.Tube_metal_conductance=12263.68
         self.Tube_metal_conductance_subcool=11186.216
         self.Tube_metal_conductance_boiling=34068
+        self.number_of_utube=3383
+        self.inner_diameter=0.019685
+        self.outer_diameter=0.022225
+        self.length=10.831712
+        self.frist_lump_length=1.05017116
 
         self.Wpi=4964.96   #hot_leg_flow_rate
         self.wfi=470.226   #Trubine_outlet
@@ -97,30 +151,6 @@ class PrimaryLump():
 
         self.Pr1=self.Spm1/self.frist_lump_length
         self.Pr2=self.Spm2/self.second_lump_length
-
-        """
-        initial conditions (as this constructor will only run once)
-        PrimaryLumpTemperature will carry the initial condition for 4 primary lumps
-        MetalLumpTemperature will carry the initial condition for 4 metal lumps as per model
-        MetalLumpTemperature will be initialized in the Metal lump object
-        """ 
-        if len(PrimaryLumpTemperature)!=4:
-            raise ValueError(" Initial condition error!")
-        else:
-            self.Tp1=PrimaryLumpTemperature[0]
-            self.Tp2=PrimaryLumpTemperature[1]
-            self.Tp3=PrimaryLumpTemperature[2]
-            self.Tp4=PrimaryLumpTemperature[3]
-
-        if len(MetalLumpTemperature)!=4:
-            raise ValueError(" Initial condition error!")
-        else:
-            self.Tm1=MetalLumpTemperature[0]
-            self.Tm2=MetalLumpTemperature[1]
-            self.Tm3=MetalLumpTemperature[2]
-            self.Tm4=MetalLumpTemperature[3]
-
-        self.Tpo=ProutTemperature
          
     
     def DTp1(self,inlet_plenum:object):
@@ -176,6 +206,9 @@ class PrimaryLump():
             return function(arg1,arg2,arg3)*time_step+intitial_cond  
         else:
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
+
+#debuging done till here 
     
 
 class MetalLump():
@@ -486,39 +519,59 @@ class DownComerRegion():
         BoilingRegion.vfg=BoilingRegion.K2*DrumRegion.Pressure+0.288335
         BoilingRegion.density=1/(BoilingRegion.vf+BoilingRegion.vfg*BoilingRegion.Xe/2)
         DrumRegion.density=1/(BoilingRegion.vf+BoilingRegion.vfg*BoilingRegion.Xe)
-
         
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
+            return function()*time_step+intitial_cond
+        elif l==1:
+            arg1=argsforfunction[0]
+            return function(arg1)*time_step+intitial_cond  
+        elif l==2:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            return function(arg1,arg2)*time_step+intitial_cond
+        elif l==3:
+            arg1=argsforfunction[0]
+            arg2=argsforfunction[1]
+            arg3=argsforfunction[2]
+            return function(arg1,arg2,arg3)*time_step+intitial_cond  
+        else:
+            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+
+    
 
 
-
-
-InletPlenum=InletPlenum(530)
-PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,500,600,700],MetalLumpTemperature=[500,600,600,500],ProutTemperature=450)
+InletPlenum=InletPlenum(430,pressure=10e6)
+PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[350,600,600,400],ProutTemperature=450,Pressure=10e6)
 
 t=0
-dt=1
+dt=0.001
 T=[]
 Temp=[]
 Temp1=[]
-dt=0.01
+dt=0.1
+logo()
+while t<100:
 
-while t<10000:
-    InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DT_pi,[],InletPlenum.Temperature,dt)
+    InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DTpi,[],InletPlenum.Temperature,dt)
     PrimaryLump.Tp1=PrimaryLump.integrator(PrimaryLump.DTp1,argsforfunction=[InletPlenum],intitial_cond=PrimaryLump.Tp1,time_step=dt)
-    t=dt+t
-    Temp.append(PrimaryLump.Tp1)
-    Temp1.append(InletPlenum.Temperature)
+
+    Temp.append(PrimaryLump.Tp1-273)
+    Temp1.append(InletPlenum.Temperature-273)
     T.append(t)
+    t=dt+t
+    #print("%.6f" %(InletPlenum.Temperature-273),"   ",'%.6f'%(PrimaryLump.Tp1-273))
 
 from matplotlib import animation
 
 
 def ani(i):
     plt.cla()
-    plt.plot(T[:i],Temp[:i])
-    plt.plot(T[:i],Temp1[:i])
+    plt.plot(T[:i],Temp[:i],color='red')
+    plt.plot(T[:i],Temp1[:i],color='green')
 
 ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
 
-plt.show()gcf(), ani,interval=1)
 plt.show()
