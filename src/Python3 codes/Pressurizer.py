@@ -154,7 +154,8 @@ class Pressurizer():
     def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
         
         try:
-            l=len(argsforfunction)
+            a=np.array(argsforfunction)
+            l=len(a)
         except:
             pass
 
