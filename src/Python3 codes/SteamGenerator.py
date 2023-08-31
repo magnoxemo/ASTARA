@@ -255,8 +255,8 @@ class MetalLump():
         
 
         '''initial conditions'''
-        self.Td=Temperature_SFSL
-        self.Tstat=Temperature_SFBL
+        self.Td=Temperature_SFSL    #needs to be updated on a continiously 
+        self.Tstat=Temperature_SFBL #needs to be updated on a continiously
 
 
         if len(PrimaryLumpTemperature)!=4:
@@ -336,7 +336,7 @@ class MetalLump():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
 
 class SubCooledRegion():
-    def __init__(self,Tavg:float) :
+    def __init__(self,Tavg:float,MetalLump:object,PrimaryLump,HeaterConnectedToUTSG:object) :
         '''In and Out flow rate needs to be fixed '''
 
         self.area=5.63642501
@@ -350,19 +350,23 @@ class SubCooledRegion():
 
         self.W1=121
         self.W2=112
+        self.MetalLump=MetalLump
+        self.PrimaryLump=PrimaryLump
+        self.HeaterConnectedToUTSG=HeaterConnectedToUTSG
 
-    def DLs1(self,PrimaryLump:object):
-        dtdLs1=(PrimaryLump.W1-PrimaryLump.W2)/(self.area*self.density)
+
+    def DLs1(self):
+        dtdLs1=(self.W1-self.W2)/(self.area*self.density)
         return dtdLs1
     
-    def DTstat(self,MetalLump:object,PrimaryLump,HeaterConnectedToUTSG:object):
+    def DTstat(self):
 
-        k=MetalLump.Ums1*PrimaryLump.Pr2*self.Ls1*(MetalLump.Tm1+MetalLump.Tm4-MetalLump.Td-MetalLump.Tstat)+\
-        self.W1*self.Cp2*MetalLump.Td-self.W2*self.Cp2*MetalLump.Tstat
+        k=self.MetalLump.Ums1*self.PrimaryLump.Pr2*self.Ls1*(self.MetalLump.Tm1+self.MetalLump.Tm4-self.MetalLump.Td-self.MetalLump.Tstat)+\
+        self.W1*self.Cp2*self.MetalLump.Td-self.W2*self.Cp2*self.MetalLump.Tstat
         
-        dtdTavg=(k/self.area*self.density)-(MetalLump.Td+MetalLump.Tstat)*self.DLs1()-self.Ls1*HeaterConnectedToUTSG.DTd()
+        dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*self.HeaterConnectedToUTSG.DTd()
         #DTd() will come from the heater 
-        return dtdTavg
+        return dtdTstat
     
     def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
         
@@ -390,16 +394,17 @@ class SubCooledRegion():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
 class BoilingRegion():
-    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float):
+    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float,SubCoolRegion:object):
         '''constants --> partial derivative const and enthalpies of
                                     hf.hg,hfg 
         '''
-
+        self.SubCooledRegion=SubCooledRegion
         self.W3=FlowRateOut
         self.Td=DowncomerTemp
         self.Tstat=BoilingTemp
         self.Xe=0.2
         self.area=5.63642501
+        
         self.hf=PropsSI('H','T',self.Tstat,'Q',0,'water')
         self.hg=PropsSI('H','T',self.Tstat,'Q',1,'water')
         self.hfg=self.hg-self.hf
@@ -424,28 +429,41 @@ class BoilingRegion():
 
         k1=HfGrad/TempGrad
         k2=HfGrad/TempGrad
-        self.dHfdTstat=interp1d(Temp,k1)
-        self.dHfgdTstat=interp1d(Temp,k2)
+        self.dHfdTstatGrad=interp1d(Temp,k1)
+        self.dHfgdTstatGrad=interp1d(Temp,k2)
         
-    def DRoub(self,SubCoolRegion:object):
-        dtdRoub=((self.W1-self.W2)+self.density*self.area*SubCooledRegion.DLs1())/(SubCooledRegion.length-SubCooledRegion.Ls1)
+    def DRoub(self):
+        dtdRoub=((self.W1-self.W2)+self.density*self.area*self.SubCooledRegion.DLs1())/(self.SubCooledRegion.length-self.SubCooledRegion.Ls1)
         return dtdRoub
     
     def DXsteam(self,PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
 
-        k=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*MetalLump.Tstat)+\
+        k=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*SubCooledRegion.Tstat)+\
         SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water')+self.Xe*(PropsSI('H','T',self.Tstat,'Q',1,'water')-\
         PropsSI('H','T',self.Tstat,'Q',0,'water')))
 
-        """ DONE TILL HERE """
+        self.hf=PropsSI('H','T',self.Tstat,'Q',0,'water')
+        self.hg=PropsSI('H','T',self.Tstat,'Q',1,'water')
+
+        dtdXe=((k/self.area)-self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*self.Xe*self.dHfgdTstatGrad(SubCooledRegion.Tstat)*SubCooledRegion.DTstat()/2+\
+            self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*self.dHfdTstatGrad(SubCooledRegion.Tstat)*SubCooledRegion.DTstat()+\
+            self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*(PropsSI('H','T',self.Tstat,'Q',self.Xe/2,'water'))*SubCooledRegion.DLs1()-\
+            (SubCooledRegion.length-SubCooledRegion.Ls1)*(PropsSI('H','T',self.Tstat,'Q',self.Xe/2,'water'))*self.DRoub())/(self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*\
+            (self.hg-self.hf))
 
 
-        pass
+        return dtdXe
 
-    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-        l=len(argsforfunction)
 
-        if l==0:
+    def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
+        
+        try:
+            a=np.array(argsforfunction)
+            l=len(a)
+        except:
+            pass
+
+        if argsforfunction==None:
             return function()*time_step+intitial_cond
         elif l==1:
             arg1=argsforfunction[0]
@@ -628,4 +646,3 @@ def ani(i):
 ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
 
 plt.show()
-
