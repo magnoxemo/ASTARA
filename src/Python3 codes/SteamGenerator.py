@@ -61,15 +61,10 @@ class InletPlenum():
         """
         return dtdTpi
     
-    def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
-        
-        try:
-            a=np.array(argsforfunction)
-            l=len(a)
-        except:
-            pass
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        if argsforfunction==None:
+        if l==0:
             return function()*time_step+intitial_cond
         elif l==1:
             arg1=argsforfunction[0]
@@ -196,15 +191,10 @@ class PrimaryLump():
         
         return dtdTp4   
     
-    def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
-        
-        try:
-            a=np.array(argsforfunction)
-            l=len(a)
-        except:
-            pass
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        if argsforfunction==None:
+        if l==0:
             return function()*time_step+intitial_cond
         elif l==1:
             arg1=argsforfunction[0]
@@ -247,6 +237,11 @@ class MetalLump():
         self.Sm2=self.Sm*(self.length-self.frist_lump_length)/self.length
         self.Sm3=self.Sm2
         self.Sm4=self.Sm1
+
+        self.Spm1=self.Sm1*self.inner_diameter/self.outer_diameter
+        self.Spm2=self.Sm2*self.inner_diameter/self.outer_diameter
+        self.Spm3=self.Spm2
+        self.Spm4=self.Spm1
 
         self.Ums1=11186.216 #effective heat transfer co-efficient between water and steel 
         self.Ums2=14068
@@ -336,7 +331,8 @@ class MetalLump():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
 
 class SubCooledRegion():
-    def __init__(self,Tavg:float,MetalLump:object,PrimaryLump,HeaterConnectedToUTSG:object) :
+    def __init__(self,Tavg:float,MetalLump:object,PrimaryLump) :
+        #def __init__(self,Tavg:float,MetalLump:object,PrimaryLump,HeaterConnectedToUTSG:object) :
         '''In and Out flow rate needs to be fixed '''
 
         self.area=5.63642501
@@ -352,7 +348,7 @@ class SubCooledRegion():
         self.W2=112
         self.MetalLump=MetalLump
         self.PrimaryLump=PrimaryLump
-        self.HeaterConnectedToUTSG=HeaterConnectedToUTSG
+        #self.HeaterConnectedToUTSG=HeaterConnectedToUTSG
 
 
     def DLs1(self):
@@ -364,19 +360,15 @@ class SubCooledRegion():
         k=self.MetalLump.Ums1*self.PrimaryLump.Pr2*self.Ls1*(self.MetalLump.Tm1+self.MetalLump.Tm4-self.MetalLump.Td-self.MetalLump.Tstat)+\
         self.W1*self.Cp2*self.MetalLump.Td-self.W2*self.Cp2*self.MetalLump.Tstat
         
-        dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*self.HeaterConnectedToUTSG.DTd()
+        #dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*self.HeaterConnectedToUTSG.DTd()
+        dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*np.random.rand()
         #DTd() will come from the heater 
         return dtdTstat
     
-    def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
-        
-        try:
-            a=np.array(argsforfunction)
-            l=len(a)
-        except:
-            pass
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
 
-        if argsforfunction==None:
+        if l==0:
             return function()*time_step+intitial_cond
         elif l==1:
             arg1=argsforfunction[0]
@@ -495,7 +487,7 @@ class DrumRegion():
 
         """user defined value"""
         self.Xe=0.2        #steam quality
-        self.water_level=2.935224 #Lw
+        self.Lw=2.935224 #Lw
         self.Wpi=4964.96   #hot_leg_flow_rate
         self.Wfi=470.226   #Trubine_outlet
         self.W1=2349.45    #SFSL
@@ -547,33 +539,30 @@ class DrumRegion():
         C2=-((self.dVfdPGrad(self.Pressure)+self.BoilingRegion.Xe*self.dVfgdPGrad(self.Pressure))/(Vf+self.BoilingRegion.Xe*Vfg)**2)
 
         dtdP=(((self.W2-self.W3)/self.Vdr)-C2*self.BoilingRegion.DXe(self.PrimaryLump,self.MetalLump,self.SubCooledRegion))/C1
+        self.Wso=self.Cl*self.Pressure #input to the turbine 
 
         return dtdP
     
     def DLw(self):
-        dtdlw=(-self.Wdw+(1-BoilingRegion.Xe)*self.W3-BoilingRegion.Xe*self.W3+self.Wfi)
+        dtdlw=(-self.Wdw+(1-BoilingRegion.Xe)*self.W3+self.Wfi)/(self.densityD*self.area)
         return dtdlw
-    
-    ''' done till here'''
 
 
-    def DTw(self,MetalLump:object):
+    def DTw(self):
 
-        val=self.Wfi*self.Tfi+(1-self.Xe)*self.W4*MetalLump.Tstat-self.W1*self.Tw 
-        dtdTw=(val-self.density*self.area*self.Tw*self.DLw())/(self.density*self.area*self.water_level)
+        lw=(-self.Wdw+(1-BoilingRegion.Xe)*self.W3-BoilingRegion.Xe*self.W3+self.Wfi)*self.Tw
+        val=(self.Wfi*self.Tfi+(1-BoilingRegion.Xe)*self.W3*BoilingRegion.Tstat-self.Wdw*self.Tw)-lw
+        dtdTw=val/self.Tw
 
         return dtdTw
-    
-    def DDensityr(self,pressurechangerate,steamqualitychangerate):
 
-        dtdrour=-(self.K1+self.K2*self.Xe)*(pressurechangerate)/(self.vf+self.Xe*self.vfg)**2\
-        -self.vfg*steamqualitychangerate/((self.vf+self.Xe*self.vfg))**2
-        return dtdrour 
     
     def DDensityg(self):
 
-        dtdroug=(self.Xe*self.W4-self.Cl*self.Pressure+self.density*self.area*self.DLw())/(self.Vdr-self.area*self.water_level)
+        dtdroug=(self.Xe*self.W4-self.Cl*self.Pressure+self.density*self.area*self.DLw())/(self.Vdr-self.area*self.Lw)
         return dtdroug
+    
+    ''' done till here'''
 
     
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
@@ -613,16 +602,8 @@ class DownComerRegion():
 
         dtdTd=DrumRegion.W1*(DrumRegion.Tw-self.Td)/self.Mass
         return dtdTd
-    
-    
-    def ConstOnUpdate(self,InletPlenum:object,PrimaryLump:object,MetalLump:object,SubcooledRegion:object,BoilingRegion:object,\
-                            DrumRegion:object,DownCOmerRegion:object):
-        
-        MetalLump.Tstat=BoilingRegion.K5*DrumRegion.Pressure+771.205
-        BoilingRegion.vf=BoilingRegion.K1*DrumRegion.Pressure+6453.186
-        BoilingRegion.vfg=BoilingRegion.K2*DrumRegion.Pressure+0.288335
-        BoilingRegion.density=1/(BoilingRegion.vf+BoilingRegion.vfg*BoilingRegion.Xe/2)
-        DrumRegion.density=1/(BoilingRegion.vf+BoilingRegion.vfg*BoilingRegion.Xe)
+
+
         
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
         l=len(argsforfunction)
@@ -648,22 +629,72 @@ class DownComerRegion():
 
 
 InletPlenum=InletPlenum(430,pressure=10e6)
-PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[350,600,600,400],ProutTemperature=450,Pressure=10e6)
+PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,300,300,300],ProutTemperature=450,Pressure=10e6)
+MetalLump=MetalLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,330,300,300],Temperature_SFBL=300,Temperature_SFSL=334)
+SubCooledRegion=SubCooledRegion(Tavg=400,MetalLump=MetalLump,PrimaryLump=PrimaryLump)
+BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350,SubCooledRegion=SubCooledRegion)
+DrumRegion=DrumRegion(DrumWaterDTemperature=400,FeedWaterTemp=300,BoilingRegion=BoilingRegion,PrimaryLump=PrimaryLump,MetalLump=MetalLump,SubCooledRegion=SubCooledRegion)
+DownComerRegion=DownComerRegion(DownComerTemperature=300)
 
 t=0
-dt=0.001
+dt=.01
 T=[]
 Temp=[]
 Temp1=[]
-dt=0.1
+Temp2=[]
+Temp3=[]
 
-while t<100:
+Tmm1=[]
+Tmm2=[]
+Tmm3=[]
+Tmm4=[]
 
-    InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DTpi,[],InletPlenum.Temperature,dt)
-    PrimaryLump.Tp1=PrimaryLump.integrator(PrimaryLump.DTp1,argsforfunction=[InletPlenum],intitial_cond=PrimaryLump.Tp1,time_step=dt)
+logo()
+while t<10:
+    '''Recirculation flow rate should be calculated here '''
+    InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DTpi,argsforfunction=[],intitial_cond=InletPlenum.Temperature,time_step=dt)
+    Tp1=PrimaryLump.integrator(PrimaryLump.DTp1,[InletPlenum],intitial_cond=PrimaryLump.Tp1,time_step=dt)
+    Tp2=PrimaryLump.integrator(PrimaryLump.DTp2,[SubCooledRegion],intitial_cond=PrimaryLump.Tp2,time_step=dt)
+    Tp3=PrimaryLump.integrator(PrimaryLump.DTp3,[],intitial_cond=PrimaryLump.Tp3,time_step=dt)
+    Tp4=PrimaryLump.integrator(PrimaryLump.DTp4,[SubCooledRegion],intitial_cond=PrimaryLump.Tp4,time_step=dt)
+    Tm1=MetalLump.integrator(function=MetalLump.DTm1,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm1,time_step=dt)
+    Tm2=MetalLump.integrator(function=MetalLump.DTm2,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm2,time_step=dt)
+    Tm3=MetalLump.integrator(function=MetalLump.DTm3,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm3,time_step=dt)
+    Tm4=MetalLump.integrator(function=MetalLump.DTm4,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm4,time_step=dt)
+    Ls1=SubCooledRegion.integrator(SubCooledRegion.DLs1,[],intitial_cond=SubCooledRegion.Ls1,time_step=dt)
+
+    PrimaryLump.Tp1=Tp1
+    PrimaryLump.Tp2=Tp2
+    PrimaryLump.Tp3=Tp3
+    PrimaryLump.Tp4=Tp4
+
+    PrimaryLump.Tm1=Tm1
+    PrimaryLump.Tm2=Tm2
+    PrimaryLump.Tm3=Tm3
+    PrimaryLump.Tm4=Tm4
+
+    MetalLump.Tm1=Tm1
+    MetalLump.Tm2=Tm2
+    MetalLump.Tm3=Tm3
+    MetalLump.Tm4=Tm4
+
+    MetalLump.Tp1=Tp1
+    MetalLump.Tp2=Tp2
+    MetalLump.Tp3=Tp3
+    MetalLump.Tp4=Tp4
+
+    SubCooledRegion.Ls1=Ls1
 
     Temp.append(PrimaryLump.Tp1-273)
-    Temp1.append(InletPlenum.Temperature-273)
+    Temp1.append(PrimaryLump.Tp2-273)
+    Temp2.append(PrimaryLump.Tp3-273)
+    Temp3.append(PrimaryLump.Tp4-273)
+
+    Tmm1.append(Tm1-273)
+    Tmm2.append(Tm2-273)
+    Tmm3.append(Tm3-273)
+    Tmm4.append(Tm4-273)
+
     T.append(t)
     t=dt+t
     #print("%.6f" %(InletPlenum.Temperature-273),"   ",'%.6f'%(PrimaryLump.Tp1-273))
@@ -673,9 +704,12 @@ from matplotlib import animation
 
 def ani(i):
     plt.cla()
-    plt.plot(T[:i],Temp[:i],color='red')
-    plt.plot(T[:i],Temp1[:i],color='green')
+    plt.plot(T[:i],Temp3[:i],color='red')
+    plt.plot(T[:i],Tmm4[:i],color='black')
+    #plt.plot(T[:i],Temp[:i],color='red')
 
-ani = animation.FuncAnimation(plt.gcf(), ani,interval=1)
+ani = animation.FuncAnimation(plt.gcf(), ani,interval=100)
+plt.cla()
 
+plt.show()
 plt.show()
