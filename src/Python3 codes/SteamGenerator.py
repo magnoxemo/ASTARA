@@ -331,7 +331,7 @@ class MetalLump():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
 
 class SubCooledRegion():
-    def __init__(self,Tavg:float,MetalLump:object,PrimaryLump) :
+    def __init__(self,Tavg:float) :
         #def __init__(self,Tavg:float,MetalLump:object,PrimaryLump,HeaterConnectedToUTSG:object) :
         '''In and Out flow rate needs to be fixed '''
 
@@ -346,8 +346,7 @@ class SubCooledRegion():
 
         self.W1=121
         self.W2=112
-        self.MetalLump=MetalLump
-        self.PrimaryLump=PrimaryLump
+
         #self.HeaterConnectedToUTSG=HeaterConnectedToUTSG
 
 
@@ -355,13 +354,13 @@ class SubCooledRegion():
         dtdLs1=(self.W1-self.W2)/(self.area*self.density)
         return dtdLs1
     
-    def DTstat(self):
+    def DTstat(self,MetalLump:object,PrimaryLump:object):
 
-        k=self.MetalLump.Ums1*self.PrimaryLump.Pr2*self.Ls1*(self.MetalLump.Tm1+self.MetalLump.Tm4-self.MetalLump.Td-self.MetalLump.Tstat)+\
-        self.W1*self.Cp2*self.MetalLump.Td-self.W2*self.Cp2*self.MetalLump.Tstat
+        k=MetalLump.Ums1*PrimaryLump.Pr2*self.Ls1*(MetalLump.Tm1+MetalLump.Tm4-MetalLump.Td-MetalLump.Tstat)+\
+        self.W1*self.Cp2*MetalLump.Td-self.W2*self.Cp2*MetalLump.Tstat
         
         #dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*self.HeaterConnectedToUTSG.DTd()
-        dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*np.random.rand()
+        dtdTstat=(k/self.area*self.density)-(MetalLump.Td+MetalLump.Tstat)*self.DLs1()-self.Ls1
         #DTd() will come from the heater 
         return dtdTstat
     
@@ -386,11 +385,10 @@ class SubCooledRegion():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
 class BoilingRegion():
-    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float,SubCooledRegion:object):
+    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float):
         '''constants --> partial derivative const and enthalpies of
                                     hf.hg,hfg 
         '''
-        self.SubCooledRegion=SubCooledRegion
         self.W3=FlowRateOut
         self.Td=DowncomerTemp
         self.Tstat=BoilingTemp
@@ -424,8 +422,8 @@ class BoilingRegion():
         self.dHfdTstatGrad=interp1d(Temp,k1)
         self.dHfgdTstatGrad=interp1d(Temp,k2)
         
-    def DRoub(self):
-        dtdRoub=((self.W1-self.W2)+self.density*self.area*self.SubCooledRegion.DLs1())/(self.SubCooledRegion.length-self.SubCooledRegion.Ls1)
+    def DRoub(self,SubCooledRegion:object):
+        dtdRoub=((self.W1-self.W2)+self.density*self.area*SubCooledRegion.DLs1())/(SubCooledRegion.length-SubCooledRegion.Ls1)
         return dtdRoub
     
     def DXsteam(self,PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
@@ -473,8 +471,7 @@ class BoilingRegion():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
 class DrumRegion():
-    def __init__(self,DrumWaterDTemperature:float,FeedWaterTemp:float,BoilingRegion:object,
-                 PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
+    def __init__(self,DrumWaterDTemperature:float,FeedWaterTemp:float):
 
         ''' Flow rates needs to be fixed '''
         self.area=10.2991
@@ -529,16 +526,17 @@ class DrumRegion():
         self.Pressure=5850053.972
         self.Cl=0.12232 #steam valve co efficient needs to be adjusted 
 
-    def Dpressure(self):
+    def Dpressure(self,BoilingRegion:object,
+                 PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
 
         Vf=(PropsSI("V","P",self.Pressure,'Q',0,'water'))
         Vg=(PropsSI("V","P",self.Pressure,'Q',1,'water'))
         Vfg=Vf-Vg
 
-        C1=-(self.dVfgdPGrad(self.Pressure)/(Vf+self.BoilingRegion.Xe*Vfg)**2)
-        C2=-((self.dVfdPGrad(self.Pressure)+self.BoilingRegion.Xe*self.dVfgdPGrad(self.Pressure))/(Vf+self.BoilingRegion.Xe*Vfg)**2)
+        C1=-(self.dVfgdPGrad(self.Pressure)/(Vf+BoilingRegion.Xe*Vfg)**2)
+        C2=-((self.dVfdPGrad(self.Pressure)+BoilingRegion.Xe*self.dVfgdPGrad(self.Pressure))/(Vf+BoilingRegion.Xe*Vfg)**2)
 
-        dtdP=(((self.W2-self.W3)/self.Vdr)-C2*self.BoilingRegion.DXe(self.PrimaryLump,self.MetalLump,self.SubCooledRegion))/C1
+        dtdP=(((self.W2-self.W3)/self.Vdr)-C2*BoilingRegion.DXe(PrimaryLump,MetalLump,SubCooledRegion))/C1
         self.Wso=self.Cl*self.Pressure #input to the turbine 
 
         return dtdP
@@ -631,9 +629,9 @@ class DownComerRegion():
 InletPlenum=InletPlenum(430,pressure=10e6)
 PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,300,300,300],ProutTemperature=450,Pressure=10e6)
 MetalLump=MetalLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,330,300,300],Temperature_SFBL=300,Temperature_SFSL=334)
-SubCooledRegion=SubCooledRegion(Tavg=400,MetalLump=MetalLump,PrimaryLump=PrimaryLump)
-BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350,SubCooledRegion=SubCooledRegion)
-DrumRegion=DrumRegion(DrumWaterDTemperature=400,FeedWaterTemp=300,BoilingRegion=BoilingRegion,PrimaryLump=PrimaryLump,MetalLump=MetalLump,SubCooledRegion=SubCooledRegion)
+SubCooledRegion=SubCooledRegion(Tavg=400)
+BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350)
+DrumRegion=DrumRegion(DrumWaterDTemperature=400,FeedWaterTemp=300)
 DownComerRegion=DownComerRegion(DownComerTemperature=300)
 
 t=0
@@ -699,17 +697,8 @@ while t<10:
     t=dt+t
     #print("%.6f" %(InletPlenum.Temperature-273),"   ",'%.6f'%(PrimaryLump.Tp1-273))
 
-from matplotlib import animation
 
 
-def ani(i):
-    plt.cla()
-    plt.plot(T[:i],Temp3[:i],color='red')
-    plt.plot(T[:i],Tmm4[:i],color='black')
-    #plt.plot(T[:i],Temp[:i],color='red')
-
-ani = animation.FuncAnimation(plt.gcf(), ani,interval=100)
-plt.cla()
-
-plt.show()
+plt.plot(T,Tmm1,'--',color='green')
+plt.plot(T,Temp,'--',color='red')
 plt.show()
