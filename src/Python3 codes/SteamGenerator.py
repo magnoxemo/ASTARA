@@ -385,13 +385,14 @@ class SubCooledRegion():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
 class BoilingRegion():
-    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float):
+    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float,Pressure:float):
         '''constants --> partial derivative const and enthalpies of
                                     hf.hg,hfg 
         '''
         self.W3=FlowRateOut
         self.Td=DowncomerTemp
         self.Tstat=BoilingTemp
+        self.Pressure=Pressure
         self.Xe=0.2
         self.area=5.63642501
         
@@ -404,29 +405,82 @@ class BoilingRegion():
         self.density=PropsSI('D','T',self.Tstat,'Q',self.Xe,'water')
 
         """gradient constant Determination part"""
-        Temp=np.linspace(300,600,num=200)
+        P=np.linspace(700,2.2e7,num=2000)
         Hf=[]
         Hg=[]
 
-        for i in Temp:
-            Hf.append(PropsSI("H","T",i,'Q',0,'water'))
-            Hg.append(PropsSI("H","T",i,'Q',1,'water'))
+        for i in P:
+            Hf.append(PropsSI("H","P",i,'Q',0,'water'))
+            Hg.append(PropsSI("H","P",i,'Q',1,'water'))
                 
-        TempGrad=np.gradient(Temp)
+        PressureGrad=np.gradient(P)
         HfGrad=np.gradient(Hf)
         Hfg=np.array(Hg)-np.array(Hf)
         HfgGrad=np.gradient(Hfg)
 
-        k1=HfGrad/TempGrad
-        k2=HfgGrad/TempGrad
-        self.dHfdTstatGrad=interp1d(Temp,k1)
-        self.dHfgdTstatGrad=interp1d(Temp,k2)
+        k1=HfGrad/PressureGrad
+        k2=HfgGrad/PressureGrad
+        self.dHfdP=interp1d(P,k1)
+        self.dHfgdP=interp1d(P,k2)
+
+        vf=[]
+        vg=[]
+
+        for i in P:
+            vf.append(PropsSI("V","P",i,'Q',0,'water'))
+            vg.append(PropsSI("V","P",i,'Q',1,'water'))
+
+        vfGrad=np.gradient(Hf)
+        vfg=np.array(vg)-np.array(vf)
+        vfgGrad=np.gradient(vfg)
+
+        k1=vfGrad/PressureGrad
+        k2=vfgGrad/PressureGrad
+        self.dVfdP=interp1d(P,k1)
+        self.dVfgdP=interp1d(P,k2)
         
     def DRoub(self,SubCooledRegion:object):
+
+        A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
+        B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
+        C=self.area*self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)
+        D=C*self.dHfdP(self.Pressure)
+        E=C*self.Xe*self.dHfgdP(self.Pressure)/2
+        F=C*self.hfg/2
+
+        m=-(self.vf+self.Xe*self.vfg/2)**2
+        n=self.dVfdP(self.Pressure)+self.Xe*self.dVfgdP(self.Pressure)/2
+        p=self.vfg/2
+
+        alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
+        alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
+        alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
+
+
+
         dtdRoub=((self.W1-self.W2)+self.density*self.area*SubCooledRegion.DLs1())/(SubCooledRegion.length-SubCooledRegion.Ls1)
+        
         return dtdRoub
     
     def DXsteam(self,PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
+
+
+        A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
+        B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
+        C=self.area*self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)
+        D=C*self.dHfdP(self.Pressure)
+        E=C*self.Xe*self.dHfgdP(self.Pressure)/2
+        F=C*self.hfg/2
+
+        m=-(self.vf+self.Xe*self.vfg/2)**2
+        n=self.dVfdP(self.Pressure)+self.Xe*self.dVfgdP(self.Pressure)/2
+        p=self.vfg/2
+
+        alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
+        alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
+        alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
+
+
 
         k=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*SubCooledRegion.Tstat)+\
         SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water')+self.Xe*(PropsSI('H','T',self.Tstat,'Q',1,'water')-\
@@ -443,7 +497,26 @@ class BoilingRegion():
 
 
         return dtdXe
+    
+    def DPressure(self,SubCooledRegion:object):
 
+        A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
+        B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
+        C=self.area*self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)
+        D=C*self.dHfdP(self.Pressure)
+        E=C*self.Xe*self.dHfgdP(self.Pressure)/2
+        F=C*self.hfg/2
+
+        m=-(self.vf+self.Xe*self.vfg/2)**2
+        n=self.dVfdP(self.Pressure)+self.Xe*self.dVfgdP(self.Pressure)/2
+        p=self.vfg/2
+
+        alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
+        alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
+        alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
+
+
+        pass 
 
     def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
         
@@ -622,6 +695,10 @@ class DownComerRegion():
             return function(arg1,arg2,arg3)*time_step+intitial_cond  
         else:
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
+            
+class PrimaryWaterUTSGOutlet():
+	def __init(self,mass:float,flowrate:float):
+		pass 
 
     
 
@@ -683,7 +760,7 @@ while t<10:
 
     SubCooledRegion.Ls1=Ls1
 
-    Temp.append(PrimaryLump.Tp1-273)
+    Temp.append(Ls1)
     Temp1.append(PrimaryLump.Tp2-273)
     Temp2.append(PrimaryLump.Tp3-273)
     Temp3.append(PrimaryLump.Tp4-273)
@@ -698,7 +775,7 @@ while t<10:
     #print("%.6f" %(InletPlenum.Temperature-273),"   ",'%.6f'%(PrimaryLump.Tp1-273))
 
 
-
-plt.plot(T,Tmm1,'--',color='green')
-plt.plot(T,Temp,'--',color='red')
+plt.plot(T,Temp1,'--',color='red')
+plt.plot(T,Temp2,'--',color='red')
+plt.plot(T,Temp3,'--',color='red')
 plt.show()
