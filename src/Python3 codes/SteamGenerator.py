@@ -439,7 +439,7 @@ class BoilingRegion():
         self.dVfdP=interp1d(P,k1)
         self.dVfgdP=interp1d(P,k2)
         
-    def DRoub(self,SubCooledRegion:object):
+    def DRoub(self,SubCooledRegion:object,MetalLump:object,PrimaryLump:object):
 
         A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
         B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
@@ -456,10 +456,14 @@ class BoilingRegion():
         alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
         alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
 
+        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
+        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water'))
+        k2=B*SubCooledRegion.DLs1()
 
+        delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
+        deltarou=-alpha2*(-n*F-p*(D+E))+(k1-k2)*(alpha1*p-alpha3*n)
 
-        dtdRoub=((self.W1-self.W2)+self.density*self.area*SubCooledRegion.DLs1())/(SubCooledRegion.length-SubCooledRegion.Ls1)
-        
+        dtdRoub=deltarou/delta
         return dtdRoub
     
     def DXsteam(self,PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
@@ -480,20 +484,15 @@ class BoilingRegion():
         alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
         alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
 
+        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
+        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water'))
+        k2=B*SubCooledRegion.DLs1()
+
+        delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
+        deltaXe=m*(alpha2*F-alpha3*(k1-k2))-p*A*alpha2
 
 
-        k=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*SubCooledRegion.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water')+self.Xe*(PropsSI('H','T',self.Tstat,'Q',1,'water')-\
-        PropsSI('H','T',self.Tstat,'Q',0,'water')))
-
-        self.hf=PropsSI('H','T',self.Tstat,'Q',0,'water')
-        self.hg=PropsSI('H','T',self.Tstat,'Q',1,'water')
-
-        dtdXe=((k/self.area)-self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*self.Xe*self.dHfgdTstatGrad(SubCooledRegion.Tstat)*SubCooledRegion.DTstat()/2+\
-            self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*self.dHfdTstatGrad(SubCooledRegion.Tstat)*SubCooledRegion.DTstat()+\
-            self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*(PropsSI('H','T',self.Tstat,'Q',self.Xe/2,'water'))*SubCooledRegion.DLs1()-\
-            (SubCooledRegion.length-SubCooledRegion.Ls1)*(PropsSI('H','T',self.Tstat,'Q',self.Xe/2,'water'))*self.DRoub())/(self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)*\
-            (self.hg-self.hf))
+        dtdXe=deltaXe/delta
 
 
         return dtdXe
@@ -515,8 +514,17 @@ class BoilingRegion():
         alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
         alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
 
+        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*SubCooledRegion.Tstat)+\
+        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water'))
+        k2=B*SubCooledRegion.DLs1()
 
-        pass 
+        delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
+        deltaP=m*(alpha1*(k2-k1)-alpha2*(D+E))-A*n*alpha2
+
+        dtdPressure=deltaP/deltaP
+
+        return  dtdPressure
+
 
     def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
         
@@ -707,7 +715,7 @@ InletPlenum=InletPlenum(430,pressure=10e6)
 PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,300,300,300],ProutTemperature=450,Pressure=10e6)
 MetalLump=MetalLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,330,300,300],Temperature_SFBL=300,Temperature_SFSL=334)
 SubCooledRegion=SubCooledRegion(Tavg=400)
-BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350)
+BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350,Pressure=10e6)
 DrumRegion=DrumRegion(DrumWaterDTemperature=400,FeedWaterTemp=300)
 DownComerRegion=DownComerRegion(DownComerTemperature=300)
 
