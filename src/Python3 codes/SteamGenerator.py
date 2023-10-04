@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from scipy.interpolate import interp1d
 from CoolProp.CoolProp import PropsSI
+from tqdm import tqdm
 
 def logo():
 	print('          #                      #       ')
@@ -344,8 +345,8 @@ class SubCooledRegion():
         self.length=10.831712
         self.Tavg=Tavg
 
-        self.W1=121
-        self.W2=112
+        self.W1=120.000001
+        self.W2=120.000000
 
         #self.HeaterConnectedToUTSG=HeaterConnectedToUTSG
 
@@ -385,6 +386,7 @@ class SubCooledRegion():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
     
 class BoilingRegion():
+
     def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float,Pressure:float):
         '''constants --> partial derivative const and enthalpies of
                                     hf.hg,hfg 
@@ -409,7 +411,8 @@ class BoilingRegion():
         Hf=[]
         Hg=[]
 
-        for i in P:
+        print("Calculating enthalpy gradient... ...")
+        for i in tqdm( P):
             Hf.append(PropsSI("H","P",i,'Q',0,'water'))
             Hg.append(PropsSI("H","P",i,'Q',1,'water'))
                 
@@ -425,8 +428,8 @@ class BoilingRegion():
 
         vf=[]
         vg=[]
-
-        for i in P:
+        print("Calculating specific volume gradient... ...")
+        for i in tqdm(P):
             vf.append(PropsSI("V","P",i,'Q',0,'water'))
             vg.append(PropsSI("V","P",i,'Q',1,'water'))
 
@@ -457,7 +460,7 @@ class BoilingRegion():
         alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
 
         k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water'))
+        SubCooledRegion.W2*self.hf-self.W3*(self.hf+self.Xe*self.hfg)
         k2=B*SubCooledRegion.DLs1()
 
         delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
@@ -482,10 +485,11 @@ class BoilingRegion():
 
         alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
         alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
-        alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
+        alpha3=self.vfg/(2*(self.vf+self.Xe*self.vfg/2)**2)
+        hfxe=self.hf+self.Xe*self.hfg
 
         k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water'))
+        SubCooledRegion.W2*self.hf-self.W3*hfxe
         k2=B*SubCooledRegion.DLs1()
 
         delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
@@ -514,14 +518,14 @@ class BoilingRegion():
         alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
         alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
 
-        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*SubCooledRegion.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*(PropsSI('H','T',self.Tstat,'Q',0,'water'))
+        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
+        SubCooledRegion.W2*self.hf-self.W3*(self.hf+self.Xe*self.hfg)
         k2=B*SubCooledRegion.DLs1()
 
         delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
         deltaP=m*(alpha1*(k2-k1)-alpha2*(D+E))-A*n*alpha2
 
-        dtdPressure=deltaP/deltaP
+        dtdPressure=deltaP/delta
 
         return  dtdPressure
 
@@ -709,13 +713,14 @@ class PrimaryWaterUTSGOutlet():
 		pass 
 
     
-
+logo()
 
 InletPlenum=InletPlenum(430,pressure=10e6)
 PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,300,300,300],ProutTemperature=450,Pressure=10e6)
 MetalLump=MetalLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,330,300,300],Temperature_SFBL=300,Temperature_SFSL=334)
 SubCooledRegion=SubCooledRegion(Tavg=400)
 BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350,Pressure=10e6)
+BoilingRegion.Xe=1
 DrumRegion=DrumRegion(DrumWaterDTemperature=400,FeedWaterTemp=300)
 DownComerRegion=DownComerRegion(DownComerTemperature=300)
 
@@ -732,8 +737,8 @@ Tmm2=[]
 Tmm3=[]
 Tmm4=[]
 
-logo()
-while t<10:
+
+while t<100:
     '''Recirculation flow rate should be calculated here '''
     InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DTpi,argsforfunction=[],intitial_cond=InletPlenum.Temperature,time_step=dt)
     Tp1=PrimaryLump.integrator(PrimaryLump.DTp1,[InletPlenum],intitial_cond=PrimaryLump.Tp1,time_step=dt)
@@ -745,6 +750,11 @@ while t<10:
     Tm3=MetalLump.integrator(function=MetalLump.DTm3,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm3,time_step=dt)
     Tm4=MetalLump.integrator(function=MetalLump.DTm4,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm4,time_step=dt)
     Ls1=SubCooledRegion.integrator(SubCooledRegion.DLs1,[],intitial_cond=SubCooledRegion.Ls1,time_step=dt)
+    
+    Pressure=BoilingRegion.integrator(BoilingRegion.DPressure,[SubCooledRegion],intitial_cond=BoilingRegion.Pressure,time_step=dt)
+    Xe=BoilingRegion.integrator(BoilingRegion.DXsteam,argsforfunction=[PrimaryLump,MetalLump,SubCooledRegion],intitial_cond=BoilingRegion.Xe,time_step=dt)
+    #print(BoilingRegion.DXsteam(PrimaryLump,MetalLump,SubCooledRegion)*dt,'  ',BoilingRegion.DPressure(SubCooledRegion)*dt)
+
 
     PrimaryLump.Tp1=Tp1
     PrimaryLump.Tp2=Tp2
@@ -767,6 +777,8 @@ while t<10:
     MetalLump.Tp4=Tp4
 
     SubCooledRegion.Ls1=Ls1
+    BoilingRegion.Xe=Xe
+    BoilingRegion.Pressure=Pressure
 
     Temp.append(Ls1)
     Temp1.append(PrimaryLump.Tp2-273)
@@ -775,15 +787,26 @@ while t<10:
 
     Tmm1.append(Tm1-273)
     Tmm2.append(Tm2-273)
-    Tmm3.append(Tm3-273)
-    Tmm4.append(Tm4-273)
+    Tmm3.append(Pressure)
+    Tmm4.append(Xe)
 
     T.append(t)
+
+    if t>50 and t<60:
+        SubCooledRegion.W1=120
+        SubCooledRegion.W2=119.999
+    if t>60 and t<70:
+        SubCooledRegion.W1=119.99999
+        SubCooledRegion.W2=120
+    else:
+        SubCooledRegion.W2=120
+        SubCooledRegion.W1=120    
     t=dt+t
     #print("%.6f" %(InletPlenum.Temperature-273),"   ",'%.6f'%(PrimaryLump.Tp1-273))
 
 
-plt.plot(T,Temp1,'--',color='red')
-plt.plot(T,Temp2,'--',color='red')
-plt.plot(T,Temp3,'--',color='red')
+
+plt.plot(T,Tmm3,'--')
+
 plt.show()
+
