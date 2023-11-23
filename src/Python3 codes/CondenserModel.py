@@ -1,12 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from CoolProp.CoolProp import PropsSI
-import numpy as np
 from CoolProp.CoolProp import PropsSI
 
 
 class Condenser():
-    def __init__(self,steampressure:float,airpressure:float):
+    def __init__(self,steampressure:float,airpressure:float,Temp_coldwaterin:float,
+                 Temp_coldwaterout:float):
 
         self.volume=3
         self.UA=356.972e3
@@ -23,6 +21,7 @@ class Condenser():
         self.W_steamairout=0
 
         self.T_steamin=600
+        self.T_steamout=400
 
         
         """ air zone """
@@ -41,10 +40,11 @@ class Condenser():
         self.T_coldwater=273+60
         self.W_hotwater=1010
         self.T_hotwater=273+80
-
-
+        self.hotwelldensity=227
         self.Hs=PropsSI('H','T',self.T_steamin,'P',self.Ps,'water')
         self.Hcw=PropsSI('H','T',self.T_coldwater,'P',101325,'water')
+        self.deltaT=(self.T_hotwater-self.T_coldwater)/np.log((self.T_steamin-self.T_coldwater)/(self.T_steamin-self.T_hotwater))
+        self.Wc=(self.UA*self.delthaT)/(self.Hs-self.Hcw)
 
 
     def DW_steam(self):
@@ -58,9 +58,29 @@ class Condenser():
     def DPs(self):
         dtdPs=self.Rs*(self.DW_steam()*self.T_steamin)/self.volume
         return dtdPs
-    def Denthalpy(self):
-        pass 
-
+    def Dsteamenthalpy(self,temp_otherthanturbine:float,pressure:float):
+        dtdWSHS=self.W_turbine*self.Hs+self.W_otherthanturbine*PropsSI("H",'T',temp_otherthanturbine,'P',pressure,'water')-\
+        (self.Wc+self.Wss)*self.Hs
+        return dtdWSHS
+    def DWa(self):
+        dtdWa=self.W_vaccumbreakvalve+self.W_draincondenser+self.W_steamgas-self.W_air
+        return dtdWa
+    def TotalPressure(self):
+        return self.Pa+self.Ps
+    def DPa(self):
+        dtdpa=self.DWa()*self.Ra*self.T_steamin/self.volume
+        return dtdpa
+    def WaterLevel(self):
+        return self.W_hotwater/(self.Hot_wellarea*self.hotwelldensity)
+    def DWhotwellwater(self):
+        dtdWhw=self.W_condensate+self.W_bubblingoxygen-self.W_hotwater
+    def DHotWellEnthalpy(self,Enthalpy_oxygen,pressure):
+        dtdWwHw=self.W_coldwater*self.Hcw+self.W_bubblingoxygen*Enthalpy_oxygen-self.W_hotwater*PropsSI('H',self.T_steamout,'P',pressure,'water')
+        return dtdWwHw
+    def DT_hotwater(self):
+        dtdTh=self.UA*self.deltaT-self.W_coldwater*self.Cp*(self.T_hotwater-self.T_coldwater)
+        return dtdTh
+   
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
         l=len(argsforfunction)
 
