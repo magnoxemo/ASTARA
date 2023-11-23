@@ -1,70 +1,65 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI
+import numpy as np
+from CoolProp.CoolProp import PropsSI
+
 
 class Condenser():
+    def __init__(self,steampressure:float,airpressure:float):
 
-    def __init__(self,water_mass_inside_of_the_condenser:float,water_droplet_rate_hot_well:float,
-                 water_condensatin_flow_rate:float,outlet_flow_rate_LPF:float,time_constant_condensation_process:float,
-                 steam_flow_rate_into_condenser:float,oulet_water_enthalpy:float,TemperatureIndise:float,
-                 enthalpy_of_the_flow_entering:float,water_flow_rate_to_condenser:float):
+        self.volume=3
+        self.UA=356.972e3
+        self.Cp=4.2e3
+        self.Ps=steampressure
+        self.Pa=airpressure
+        self.Rs=0.4615e3
+        self.Ra=.287e3
+
+        """ steam mass balance variables"""
+        self.W_turbine=4
+        self.W_otherthanturbine=10
+        self.W_condensate=4
+        self.W_steamairout=0
+
+        self.T_steamin=600
+
         
-        """ there are also some rooms to add more features for example 
-            3rd loop water exit and inlet temperature 
-            cooling tower dynamic modeling here. But for now the working modeling of
-            the condenser is done  """
-        
-        """initials conditions + variables """
+        """ air zone """
+        self.W_vaccumbreakvalve=0
+        self.W_air=0
+        self.W_steamgas=0
+        self.W_draincondenser=0
 
-        self.Mw=water_mass_inside_of_the_condenser
-        self.W1=water_droplet_rate_hot_well               
-        self.W2=steam_flow_rate_into_condenser
-        self.W3=water_condensatin_flow_rate
-        self.Wo=outlet_flow_rate_LPF                      #feed water heater 
-        self.Wi=water_flow_rate_to_condenser              #from turbine
-        self.ho=oulet_water_enthalpy
-        self.Temp=TemperatureIndise
+        """ hot well water"""
+        self.Hot_wellarea=0.2
+        self.W_hotwell=110
+        self.W_bubblingoxygen=10
 
-
-        """constants """
-        self.time_const=time_constant_condensation_process
-
-        self.hf=PropsSI("H","T",self.Temp,"Q",0,"water")
-        self.hg=PropsSI("H","T",self.Temp,"Q",1,"water")
-        self.hfg=self.hg-self.hf
-
-        self.hi=enthalpy_of_the_flow_entering
+        """ cold water """
+        self.W_coldwater=107.881
+        self.T_coldwater=273+60
+        self.W_hotwater=1010
+        self.T_hotwater=273+80
 
 
-    def DMw(self):
+        self.Hs=PropsSI('H','T',self.T_steamin,'P',self.Ps,'water')
+        self.Hcw=PropsSI('H','T',self.T_coldwater,'P',101325,'water')
 
-        dtdMw=self.Wi*(1-(self.hi-self.hf)/self.hfg)-self.Wo+self.W3
 
-        return dtdMw
+    def DW_steam(self):
+
+        self.R=(self.Pa*self.Rs)/(self.Pa*self.Ra+self.Ps*self.Rs)
+        self.Wss=self.W_air*(1-self.R)
+        dtdWsteam=self.W_turbine+self.W_otherthanturbine-self.W_condensate-self.Wss
+
+        return dtdWsteam
     
-    def DW3(self):
-
-        dtdW3=(self.self.Wi*(self.hi-self.hf)/self.hfg-self.W3)/self.time_const
-
-        return dtdW3
-    
-    def  Dho(self):
-
-        dtdho=(self.Wi*(1-(self.hi-self.hf)/self.hfg)+self.W3)*(self.hf-self.ho)/self.Mw
-
-        return dtdho
-    
-    def consitutive_eq(self):
-    
-        '''this equation is just to monitor the  
-        
-                1.condensation
-                2.Water doplet from the vapor
-                3.Vapor condensation rate when comes in contact with the 3rd loop water '''
-
-        self.W1=self.Wi*(1-(self.hi-self.hf)/self.hfg)
-        self.W2=self.Wi*(self.hi-self.hf)/self.hfg
-
+    def DPs(self):
+        dtdPs=self.Rs*(self.DW_steam()*self.T_steamin)/self.volume
+        return dtdPs
+    def Denthalpy(self):
+        pass 
 
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
         l=len(argsforfunction)
