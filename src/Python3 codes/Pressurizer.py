@@ -44,7 +44,7 @@ class Pressurizer():
         self.k3p=PropsSI('d(h)/d(T)|P','P',self.Pressure,'Q',1,'Water')
         
         '''-------------calculation of partital derivative ----------'''
-        Pressure_=np.logspace(5,17,7000)
+        Pressure_=np.logspace(3,16.909,100000,base=np.e)
         density_=np.array(PropsSI("D",'P',Pressure_,'Q',0,'water'))
         nu_s=1/density_
         delta_nu_s=np.diff(nu_s)
