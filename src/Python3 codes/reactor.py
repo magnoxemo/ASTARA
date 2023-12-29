@@ -10,7 +10,7 @@ class Reactor_Core():
         self.core_height=4.38912
         self.active_height=2
         self.CoolantDensity=PropsSI('D','P',Pressure,'Q',0,'water')
-        self.rho_f=10.93e6
+        self.rho_f=10920
         self.Cpc=PropsSI('C','P',Pressure,'Q',0,'water')   #coolant conductivity 
         self.area=14855.196091203/3
         self.U=1335                                         #needs more exect value conductivity
@@ -23,7 +23,7 @@ class Reactor_Core():
         self.Beta5=0.000829
         self.Beta6=0.000166
 
-        self.total_delayed_const=(self.Beta1+self.Beta2+self.Beta3+self.Beta4+self.Beta5+self.Beta6)*1.1
+        self.total_delayed_const=(self.Beta1+self.Beta2+self.Beta3+self.Beta4+self.Beta5+self.Beta6)
         
         #decay const
         self.Lamda1=0.0127
@@ -94,9 +94,10 @@ class Reactor_Core():
 
         """ necessary calculations """
         """mass"""
+        self.core_center_factor=0.5
         self.Mcl=1000
-        self.Mlp=((self.core_height-self.active_height)*self.d**2*PropsSI("D","P",self.Pressure,"Q",0,'water'))/8
-        self.Mup=self.Mup=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tup,"Q",0,'water'))/8
+        self.Mlp=((self.core_height-self.active_height)*self.d**2*PropsSI("D","P",self.Pressure,"Q",0,'water'))*core_center_factor/4
+        self.Mup=self.Mup=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tup,"Q",0,'water'))*(1-core_center_factor)/4
         self.Mhl=1000
 
         '''this values still not known. '''
@@ -116,7 +117,7 @@ class Reactor_Core():
 
     def Reacivity(self,FuelTempSum:float,ModeratorTempSum:float,Pressure:float):
         
-        self.reactivity=self.ExternalReactivity+self.Alpha_f*(self.tempfuel-FuelTempSum)/3+self.Alpha_m*(self.tempmod-ModeratorTempSum)/6+self.Alpha_p(Pressure-self.Pressure)
+        self.reactivity=self.ExternalReactivity+self.Alpha_f*(FuelTempSum-self.tempfuel)/5+self.Alpha_m*(ModeratorTempSum-self.tempmod)/10+self.Alpha_p(Pressure-self.Pressure)
     
     def DPower(self):
         dtdPP0=((self.reactivity-self.total_delayed_const)*self.PowerRatio)/self.NGT+self.Lamda*self.Precursor
@@ -271,6 +272,7 @@ class Reactor_Core():
             raise   AttributeError("agrs in your differential function were not correct! Fix them")  
 
 
+'''------------------------------------------------------------ Done---------------------------------------------------- ''' 
 '''------------------------------------------------------------ Done and final ---------------------------------------------------- ''' 
 
 
