@@ -96,8 +96,8 @@ class Reactor_Core():
         """mass"""
         self.core_center_factor=0.5
         self.Mcl=1000
-        self.Mlp=((self.core_height-self.active_height)*self.d**2*PropsSI("D","P",self.Pressure,"Q",0,'water'))*core_center_factor/4
-        self.Mup=self.Mup=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tup,"Q",0,'water'))*(1-core_center_factor)/4
+        self.Mlp=((self.core_height-self.active_height)*self.d**2*PropsSI("D","P",self.Pressure,"Q",0,'water'))*self.core_center_factor/4
+        self.Mup=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tup,"Q",0,'water'))*(1-self.core_center_factor)/4
         self.Mhl=1000
 
         '''this values still not known. '''
@@ -241,12 +241,12 @@ class Reactor_Core():
         return dtdTcl
     
     def DTup(self):
-        self.Mup=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tup,"Q",0,'water'))/8
+        self.Mup=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tup,"Q",0,'water'))*(1-self.core_center_factor)/4
         dtdTcl=self.Wc*(self.Tmo10-self.Tup)/self.Mup
         return dtdTcl
     
     def DTlp(self):
-        self.Mlp=((self.core_height-self.active_height)*self.d**2*PropsSI("D","T",self.Tcl,"Q",0,'water'))/8
+        self.Mlp=((self.core_height-self.active_height)*self.d**2*PropsSI("D","P",self.Pressure,"Q",0,'water'))*self.core_center_factor/4
         dtdTcl=self.Wc*(self.Tcl-self.Tlp)/self.Mlp
         return dtdTcl
     
@@ -273,7 +273,6 @@ class Reactor_Core():
 
 
 '''------------------------------------------------------------ Done---------------------------------------------------- ''' 
-'''------------------------------------------------------------ Done and final ---------------------------------------------------- ''' 
 
 
 
