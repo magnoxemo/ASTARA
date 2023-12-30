@@ -1,98 +1,31 @@
-import numpy as np
-import matplotlib.pyplot as plt 
-from scipy.interpolate import interp1d
+import numpy as np 
+import scipy as sp 
 from CoolProp.CoolProp import PropsSI
-from tqdm import tqdm
 
-def logo():
-	print('          #                      #       ')
-	print("         ####                  ####      ")
-	print('        $$$$$$                $$$$$$     ')
-	print('      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ')
-	print('    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('  %%%%%%%%@@@%%%%%%%%%%%%%%%%%%@@@%%%%%%%%%')
-	print('%%%%%%%@@@@@@@@%%%%%%%%%%%%%%@@@@@@@@%%%%%%%%')
-	print('%%%%%%%%@@@@@@%%%%%%%%%%%%%%%%@@@@@@%%%%%%%%%')
-	print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print(' %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ')
-	print('         %%%%%%%%%%%%%%%%%%%%%%%%%%%')
-	print('             %%%%%%%%%%%%%%%%%%%%%')
-	print('                 A   Z   O   G')
-	print('    A Nuclear Power Plant Simulation code \n\n\n\n ')
-	print('	   PROGRAMMER:')
-	print("EBNY WALID AHAMMED ")
-	print("Undergrad Student --Level 4 term 2")
-	print("Dept of Nuclear Engineering")
-	print("University of Dhaka")
-		
+"""    -------------------------- Model Begin -----------------------------------------"""
 
-class InletPlenum():
-    
-    def __init__(self,Temperature:float,pressure:float):
-        """
+class u_tube_steam_generator(): 
+    def __init__(self,primary_coolant_inlet_temperature:float,feed_water_inlet_temperature:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list):
         
-        Mass     ---> stays in the pipe under steady state conditions
-        Flow_rate---> hot_leg_flow_rate
-        Theta    ---> temperature of the hot leg water 
-        Pressure--> Reactor Pressure
-        
-        """
-        self.Mass=10000
-        self.Temperature=Temperature
-        self.Pressure=pressure		 
-        self.Flow_rate=4964.96
-        self.density=PropsSI("D","T",self.Temperature,'P',self.Pressure,'water') 
-        self.Theta=440          
-        
-    def DTpi(self):
-        self.time_const=self.Flow_rate/self.Mass
-        dtdTpi=(self.Theta-self.Temperature)*self.time_const
-        
-        """
-        self.theta=reactor.T_hotleg
-        self.theta should be coupled with the reactor 
-        it will be reactor.T_hotleg
-        
-        """
-        return dtdTpi
-    
-    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-        l=len(argsforfunction)
+        '''------------------------       design parameters        -------------------'''
+        self.N=3388
+        self.L=10.83
+        self.L_w=1.057
+        self.Ld=10.83
+        self.R_in=9.75e-2 #needs to be checked 
+        self.R_out=11e-2  #needs to be checked
+        self.k=55.0012
+        '''------------------------        area and volume          ------------------'''
+        self.P_r1=2*np.pi*self.R_in
+        self.P_r2=2*np.pi*self.R_out
+        self.Ap=self.N*np.pi*self.R_in**2
+        self.rho_m=8050                #needs the confirmation 
+        self.Vp=30.5
+        self.Vr=13.2523
+        self.Vdr=124.55748301
+        self.Vpi=(0.5*self.Vp-self.Ap*self.L)
 
-        if l==0:
-            return function()*time_step+intitial_cond
-        elif l==1:
-            arg1=argsforfunction[0]
-            return function(arg1)*time_step+intitial_cond  
-        elif l==2:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            return function(arg1,arg2)*time_step+intitial_cond
-        elif l==3:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            arg3=argsforfunction[2]
-            return function(arg1,arg2,arg3)*time_step+intitial_cond  
-        else:
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
-
-
-
-class PrimaryLump():
-
-    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,ProutTemperature:float,Pressure:float):
-        """
-        initial conditions (as this constructor will only run once)
-        PrimaryLumpTemperature will carry the initial condition for 4 primary lumps
-        MetalLumpTemperature will carry the initial condition for 4 metal lumps as per model
-        MetalLumpTemperature will be initialized in the Metal lump object
-        """ 
+        '''------------------- coolant and metal conductivity ------------------------'''
         if len(PrimaryLumpTemperature)!=4:
             raise ValueError(" Initial condition error!")
         else:
@@ -109,202 +42,147 @@ class PrimaryLump():
             self.Tm3=MetalLumpTemperature[2]
             self.Tm4=MetalLumpTemperature[3]
 
-        self.Tpo=ProutTemperature
-        self.Pressure=Pressure #Reactor Pressure or Pressure at the pressurizer
+        self.Tfi=feed_water_inlet_temperature
+        self.Tpi=primary_coolant_inlet_temperature
 
-        self.Tavg=np.sum(PrimaryLumpTemperature)/len(PrimaryLumpTemperature)
-        self.heat_capacity_1=PropsSI("C",'T',self.Tavg,'P',self.Pressure,'water')
-        self.density=PropsSI("D",'T',self.Tavg,'P',self.Pressure,'water')
+        self.Cp1=PropsSI("C","T",self.Tp1,'Q',0,'water')
+        self.Cm=460
 
-        ''' the heat capacity and the density needs to be constantly updated based on the temperature and the 
-        pressure '''
+        '''-------------------------       flow rates             ----------------------'''
+        self.Win=4950
+        self.Wp1=self.W_in
+        self.Wpout=self.W_p1
+        '''-------------------------      mass calculation        ----------------------'''
+        self.mpi=PropsSI('D','T',primary_coolant_inlet_temperature,'Q',0,'water')*self.Vpi
+        self.mp1=PropsSI('D','T',self.Tp1,'Q',0,'water')*self.P_r1*self.L_w
+        self.mp2=PropsSI('D','T',self.Tp2,'Q',0,'water')*self.P_r1*(self.L-self.L_w)
+        self.mp3=self.mp2
 
-        self.Primary_side_flim_conductance=25563
-        self.Tube_metal_conductance=12263.68
-        self.Tube_metal_conductance_subcool=11186.216
-        self.Tube_metal_conductance_boiling=34068
-        self.number_of_utube=3383
-        self.inner_diameter=0.019685
-        self.outer_diameter=0.022225
-        self.length=10.831712
-        self.frist_lump_length=1.05017116
+        self.mm1=self.N*np.pi*self.L_w*(self.R_out**2-self.R_in**2)*self.rho_m
+        self.mm2=self.N*np.pi*(self.L-self.L_w)*(self.R_out**2-self.R_in**2)*self.rho_m
 
-        self.Wpi=4964.96   #hot_leg_flow_rate
-        self.wfi=470.226   #Trubine_outlet
-        self.W1=2349.45    #SFSL
-        self.W2=self.W1
-        self.W3=self.W1
-        
-        self.second_lump_length=self.length-self.frist_lump_length
-        self.Ap=np.pi*self.inner_diameter**2*self.number_of_utube/4
-        self.Mp=self.density*self.Ap*self.length
-        self.Mp1=self.Mp*(self.frist_lump_length/self.length)
-        self.Mp2=self.Mp*(self.second_lump_length/self.length)
-        self.Mp3=self.Mp2
-        self.Mp4=self.Mp1
+        self.hi=PropsSI('H','T',primary_coolant_inlet_temperature,'Q',0,'water')
+        self.hd=PropsSI('H','T',feed_water_inlet_temperature,'Q',0,'water')
 
-        self.Sm=np.pi*self.length*self.outer_diameter*self.number_of_utube
-        self.Sm1=self.Sm*self.frist_lump_length/self.length
-        self.Sm2=self.Sm*self.second_lump_length/self.length
-        self.Sm3=self.Sm2
-        self.Sm4=self.Sm1
+        self.Upm=1/((1/self.hi)+(self.R_in/self.k)*(np.log10((self.Rout+self.R_in)/((self.R_in*2)))))
+        self.Ums1=1/((1/self.hd)+(self.R_out/self.k)*(np.log10(2*self.R_out/(self.Rout+self.R_in))))
+        self.Ums2=self.Ums1
 
-        self.Spm1=self.Sm1*self.inner_diameter/self.outer_diameter
-        self.Spm2=self.Sm2*self.inner_diameter/self.outer_diameter
-        self.Spm3=self.Spm2
-        self.Spm4=self.Spm1
-
-        self.Pr1=self.Spm1/self.frist_lump_length
-        self.Pr2=self.Spm2/self.second_lump_length
-         
     
-    def DTp1(self,inlet_plenum:object):
-        """inlet_plenum"""
-        dtdTp1=self.Wpi*(inlet_plenum.Temperature-self.Tp1)/(self.density*self.Ap*self.frist_lump_length)\
-              +self.Primary_side_flim_conductance*self.Spm1*(self.Tm1-self.Tp1)\
-              /(self.Mp1*self.heat_capacity_1)
+    '''--------------------------------------------primary loop begin -------------------------------'''
+  
+    def DTpi(self,Hot_leg_temp:float):
+        
+        dtdTpi=self.Win*(Hot_leg_temp-self.T_pi)/self.mpi
+        return dtdTpi
+    
+    def DLs1(self):
+        rho_p=PropsSI('D','T',self.Tp1,'Q',0,'water')
+        dtdLs1=(self.Win-self.Wp1)/(rho_p*self.Ap)
+        return dtdLs1
+
+    def DTp1(self):
+
+        rho_p=PropsSI('D','T',self.Tp1,'Q',0,'water')
+        Cp1=PropsSI("C",'T',self.Tp1,'Q',0,'water')
+        mp1=PropsSI('D','T',self.Tp1,'Q',0,'water')*self.Ap*self.L_w
+        a=self.Win*(self.Tpi-self.Tp1)/(rho_p*self.Ap*self.L_w)
+        b=self.Upm*self.P_r1*(self.L_w)*(self.Tm1-self.Tp1)
+        c=mp1*Cp1
+        dtdTp1=a+b/c
         return dtdTp1
     
-    def DTp2(self,sub_cool_region:object):
+    def DTp2(self):
 
-        '''DLs1 method will be called from the sub_cool_region class '''
-        dtdTp2=self.Wpi*(self.Tp1-self.Tp2)/(self.density*self.Ap*self.second_lump_length)\
-              +self.Primary_side_flim_conductance*self.Spm2*(self.Tm2-self.Tp2)\
-              /(self.Mp1*self.heat_capacity_1)+(self.Tp2-self.Tp1)*sub_cool_region.DLs1()/\
-              self.second_lump_length
-        
+        rho_p=PropsSI('D','T',self.Tp2,'Q',0,'water')
+        Cp1=PropsSI("C",'T',self.Tp1,'Q',0,'water')
+        mp2=rho_p*self.Ap*(self.L-self.L_w)
+        a=self.Win*(self.Tpi-self.Tp1)/mp2
+        b=-(self.Upm*self.P_r1*(self.L-self.L_w)*(self.Tp2-self.Tm2))/(mp2*Cp1)
+        c=-((self.Tp1-self.Tp2))/(self.L-self.L_w)
+        d=self.DLs1()
+
+        dtdTp2=a+b+c*d
+
         return dtdTp2
     
     def DTp3(self):
 
-        dtdTp3=self.Wpi*(self.Tp2-self.Tp3)/(self.density*self.Ap*self.frist_lump_length)\
-              +self.Primary_side_flim_conductance*self.Spm2*(self.Tm3-self.Tp3)\
-              /(self.Mp1*self.heat_capacity_1)     
+        rho_p=PropsSI('D','T',self.Tp1,'Q',0,'water')
+        Cp1=PropsSI("C",'T',self.Tp1,'Q',0,'water')
+        mp3=rho_p*self.Ap*(self.L-self.L_w)
+
+        a=self.Win*(self.Tp2-self.Tp3)/(rho_p*self.Ap*self.L_w)
+        b=self.Upm*self.P_r1*(self.L-self.L_w)*(self.Tm3-self.Tp3)
+        c=mp3*Cp1
+
+        dtdTp3=a+b/c
+        return dtdTp3   
           
-        return dtdTp3
     
-    def DTp4(self,sub_cool_region:object):
-        '''DLs1 method will be called from the sub_cool_region class '''
-        dtdTp4=self.Wpi*(self.Tp1-self.Tp2)/(self.density*self.Ap*self.second_lump_length)\
-              +self.Primary_side_flim_conductance*self.Spm1*(self.Tm4-self.Tp4)\
-              /(self.Mp1*self.heat_capacity_1)+(self.Tp3-self.Tp4)*sub_cool_region.DLs1()/\
-              self.frist_lump_length
-        
-        return dtdTp4   
-    
-    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-        l=len(argsforfunction)
+    def DTp4(self):
 
-        if l==0:
-            return function()*time_step+intitial_cond
-        elif l==1:
-            arg1=argsforfunction[0]
-            return function(arg1)*time_step+intitial_cond  
-        elif l==2:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            return function(arg1,arg2)*time_step+intitial_cond
-        elif l==3:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            arg3=argsforfunction[2]
-            return function(arg1,arg2,arg3)*time_step+intitial_cond  
-        else:
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
+        rho_p=PropsSI('D','T',self.Tp4,'Q',0,'water')
+        Cp1=PropsSI("C",'T',self.Tp4,'Q',0,'water')
+        mp4=PropsSI('D','T',self.Tp4,'Q',0,'water')*self.Ap*self.L_w
+
+        a=self.Win*(self.Tp3-self.Tp4)/(rho_p*self.Ap*self.L_w)
+        b=self.Upm*self.P_r1*(self.L_w)*(self.Tm4-self.Tp4)/(mp4*Cp1)
+        c=(self.Tp3-self.Tp4)/self.L_w
+        dtdTp4=a+b+c*self.DLs1()
+        return dtdTp4
+    
+    '''--------------------------------------------primary loop done -------------------------------'''
+    '''---------------------------------------------------------------------------------------------'''
     
 
-class MetalLump():
-    def __init__(self,PrimaryLumpTemperature:list,MetalLumpTemperature:list,Temperature_SFSL:float,Temperature_SFBL:float):
-        
-        self.heat_capacity_m=460.547802 #specific heat of the metal 
-        self.number_of_utube=3383
-        self.inner_diameter=0.019685
-        self.outer_diameter=0.022225
-        self.metaldensity= 8050.095
-        self.length=10.831712
-        self.frist_lump_length=1.05017116
-
-        '''Mass calculation in the metal lump '''
-        self.Mm=self.metaldensity*self.number_of_utube*self.length*np.pi*(self.outer_diameter**2-self.inner_diameter**2)/4
-        self.Mm1=self.Mm*self.frist_lump_length/self.length
-        self.Mm2=self.Mm*(self.length-self.frist_lump_length)/self.length
-        self.Mm3=self.Mm2
-        self.Mm4=self.Mm1
-
-        '''      constant imported from the primary lump   '''
-
-        self.Sm=np.pi*self.length*self.outer_diameter*self.number_of_utube
-        self.Sm1=self.Sm*self.frist_lump_length/self.length
-        self.Sm2=self.Sm*(self.length-self.frist_lump_length)/self.length
-        self.Sm3=self.Sm2
-        self.Sm4=self.Sm1
-
-        self.Spm1=self.Sm1*self.inner_diameter/self.outer_diameter
-        self.Spm2=self.Sm2*self.inner_diameter/self.outer_diameter
-        self.Spm3=self.Spm2
-        self.Spm4=self.Spm1
-
-        self.Ums1=11186.216 #effective heat transfer co-efficient between water and steel 
-        self.Ums2=14068
-        self.Up1=25563
-
-        
-
-        '''initial conditions'''
-        self.Td=Temperature_SFSL    #needs to be updated on a continiously 
-        self.Tstat=Temperature_SFBL #needs to be updated on a continiously
-
-
-        if len(PrimaryLumpTemperature)!=4:
-            raise ValueError(" Initial condition error in metal lump")
-        else:
-            self.Tp1=PrimaryLumpTemperature[0]
-            self.Tp2=PrimaryLumpTemperature[1]
-            self.Tp3=PrimaryLumpTemperature[2]
-            self.Tp4=PrimaryLumpTemperature[3]
-
-        if len(MetalLumpTemperature)!=4:
-            raise ValueError(" Initial condition error in metal lump")
-        else:
-            self.Tm1=MetalLumpTemperature[0]
-            self.Tm2=MetalLumpTemperature[1]
-            self.Tm3=MetalLumpTemperature[2]
-            self.Tm4=MetalLumpTemperature[3]
+    '''-------------------------------------------- Metal lump begin -------------------------------'''
     
-    def DTm1(self,sub_cool_region:object):
-
-        dtdTm1=self.Up1*self.Spm1*self.Tp1/(self.Mm1*self.heat_capacity_m)-\
-        (self.Up1*self.Spm1+self.Ums1*self.Sm1)*self.Tm1/(self.Mm1*self.heat_capacity_m)\
-        +self.Ums1*self.Sm1*(self.Td+self.Tstat)/(2*self.Mm1*self.heat_capacity_m)\
-        -(self.Tm2-self.Tm1)*sub_cool_region.DLs1()/(2*self.frist_lump_length)
-
+    def DTm1(self,avg_sub_cool_temp:float):
+        Ts1=avg_sub_cool_temp
+        a=(self.Upm*self.P_r1*self.L_w*(self.Tp1-self.Tm1)-self.Ums1*self.P_r2*self.L_w*(self.Tm1-Ts1))/(self.mm1*self.Cm)
+        b=-(self.Tm1-self.Tm2)/self.L_w
+        c=self.DLs1()
+        dtdTm1=a+b*c
         return dtdTm1
     
-    def DTm2(self,sub_cool_region:object):
+    def DTm2(self,Tsat):
 
-        dtdTm2=self.Up1*self.Spm2*self.Tp2/(self.Mm2*self.heat_capacity_m)-(self.Up1*self.Spm2+self.Ums2*self.Sm2)*self.Tm2\
-        /(self.Mm2*self.heat_capacity_m)+(self.Ums2*self.Sm2*self.Tstat)/(self.Mm2*self.heat_capacity_m)+(self.Tm2-self.Tm1)*\
-        sub_cool_region.DLs1()/(2*(self.length-self.frist_lump_length))
+        a=self.Upm*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
+        b=-(self.Upm*self.P_r1*(self.L-self.L_w)+self.Ums2*self.P_r2*(self.L-self.L_w))*self.Tm2/(self.mm2*self.Cm)
+        c=-self.Ums2*self.P_r2*(self.L-self.L_w)*Tsat/(self.mm2*self.Cm)
+        d=(self.Tm2-self.Tm1)/(2*(self.L-self.L_w))
+
+        dtdTm2=a+b+c+d*self.DLs1()
         
         return dtdTm2
     
-    def DTm3(self,sub_cool_region:object):
+    def DTm3(self,Tsat):
 
-        dtdTm3=self.Up1*self.Spm2*self.Tp3/(self.Mm2*self.heat_capacity_m)-(self.Up1*self.Spm2+self.Ums2*self.Sm2)*self.Tm3\
-        /(self.Mm2*self.heat_capacity_m)+(self.Ums2*self.Sm2*self.Tstat)/(self.Mm2*self.heat_capacity_m)+(self.Tm3-self.Tm4)*\
-        sub_cool_region.DLs1()/(2*(self.length-self.frist_lump_length))
+        a=self.Upm*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
+        b=-(self.Upm*self.P_r1*(self.L-self.L_w)+self.Ums2*self.P_r2*(self.L-self.L_w))*self.Tm3/(self.mm2*self.Cm)
+        c=-self.Ums2*self.P_r2*(self.L-self.L_w)*Tsat/(self.mm2*self.Cm)
+        d=(self.Tm3-self.Tm4)/(2*(self.L-self.L_w))
+
+        dtdTm3=a+b+c+d*self.DLs1()
         
         return dtdTm3
     
-    def DTm4(self,sub_cool_region:object):
+    def DTm4(self,avg_sub_cool_temp:float):
+        Ts1=avg_sub_cool_temp
 
-        dtdTm4=self.Up1*self.Spm1*self.Tp4/(self.Mm1*self.heat_capacity_m)-\
-        (self.Up1*self.Spm1+self.Ums1*self.Sm1)*self.Tm4/(self.Mm1*self.heat_capacity_m)\
-        +self.Ums1*self.Sm1*(self.Td+self.Tstat)/(2*self.Mm1*self.heat_capacity_m)\
-        -(self.Tm3-self.Tm4)*sub_cool_region.DLs1()/(2*self.frist_lump_length)
+        a=self.Upm*self.P_r1*(self.L_w)*self.Tp4/(self.mm1*self.Cm)
 
+        b=-(self.Upm*self.P_r1*(self.L_w)+self.Ums2*self.P_r2*(self.L_w))*self.Tm4/(self.mm1*self.Cm)
+        c=-self.Ums2*self.P_r2*(self.L_w)*Ts1/(self.mm1*self.Cm)
+        d=-(self.Tm3-self.Tm4)/(2*(self.L_w))
+
+        c=self.DLs1()
+        dtdTm4=a+b*c
         return dtdTm4
+    
 
+    '''-------------------------------------------- Metal lump done -------------------------------'''
     
     def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
         
@@ -330,483 +208,3 @@ class MetalLump():
             return function(arg1,arg2,arg3)*time_step+intitial_cond  
         else:
             raise   AttributeError("agrs in your differential function were not correct! Fix them")
-
-class SubCooledRegion():
-    def __init__(self,Tavg:float) :
-        #def __init__(self,Tavg:float,MetalLump:object,PrimaryLump,HeaterConnectedToUTSG:object) :
-        '''In and Out flow rate needs to be fixed '''
-
-        self.area=5.63642501
-        self.density=806.05092
-        self.Cp2=4877.622
-
-        "initial conditions "
-        self.Ls1=1.05017116
-        self.length=10.831712
-        self.Tavg=Tavg
-
-        self.W1=120.000001
-        self.W2=120.000000
-
-        #self.HeaterConnectedToUTSG=HeaterConnectedToUTSG
-
-
-    def DLs1(self):
-        dtdLs1=(self.W1-self.W2)/(self.area*self.density)
-        return dtdLs1
-    
-    def DTstat(self,MetalLump:object,PrimaryLump:object):
-
-        k=MetalLump.Ums1*PrimaryLump.Pr2*self.Ls1*(MetalLump.Tm1+MetalLump.Tm4-MetalLump.Td-MetalLump.Tstat)+\
-        self.W1*self.Cp2*MetalLump.Td-self.W2*self.Cp2*MetalLump.Tstat
-        
-        #dtdTstat=(k/self.area*self.density)-(self.MetalLump.Td+self.MetalLump.Tstat)*self.DLs1()-self.Ls1*self.HeaterConnectedToUTSG.DTd()
-        dtdTstat=(k/self.area*self.density)-(MetalLump.Td+MetalLump.Tstat)*self.DLs1()-self.Ls1
-        #DTd() will come from the heater 
-        return dtdTstat
-    
-    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-        l=len(argsforfunction)
-
-        if l==0:
-            return function()*time_step+intitial_cond
-        elif l==1:
-            arg1=argsforfunction[0]
-            return function(arg1)*time_step+intitial_cond  
-        elif l==2:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            return function(arg1,arg2)*time_step+intitial_cond
-        elif l==3:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            arg3=argsforfunction[2]
-            return function(arg1,arg2,arg3)*time_step+intitial_cond  
-        else:
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
-    
-class BoilingRegion():
-
-    def __init__(self,FlowRateOut:float,DowncomerTemp:float,BoilingTemp:float,Pressure:float):
-        '''constants --> partial derivative const and enthalpies of
-                                    hf.hg,hfg 
-        '''
-        self.W3=FlowRateOut
-        self.Td=DowncomerTemp
-        self.Tstat=BoilingTemp
-        self.Pressure=Pressure
-        self.Xe=0.2
-        self.area=5.63642501
-        
-        self.hf=PropsSI('H','T',self.Tstat,'Q',0,'water')
-        self.hg=PropsSI('H','T',self.Tstat,'Q',1,'water')
-        self.hfg=self.hg-self.hf
-        self.vf=PropsSI('V','T',self.Tstat,'Q',0,'water')
-        self.vg=PropsSI('V','T',self.Tstat,'Q',0,'water')
-        self.vfg=self.vg-self.vf
-        self.density=PropsSI('D','T',self.Tstat,'Q',self.Xe,'water')
-
-        """gradient constant Determination part"""
-        P=np.linspace(700,2.2e7,num=2000)
-        Hf=[]
-        Hg=[]
-
-        print("Calculating enthalpy gradient... ...")
-        for i in tqdm( P):
-            Hf.append(PropsSI("H","P",i,'Q',0,'water'))
-            Hg.append(PropsSI("H","P",i,'Q',1,'water'))
-                
-        PressureGrad=np.gradient(P)
-        HfGrad=np.gradient(Hf)
-        Hfg=np.array(Hg)-np.array(Hf)
-        HfgGrad=np.gradient(Hfg)
-
-        k1=HfGrad/PressureGrad
-        k2=HfgGrad/PressureGrad
-        self.dHfdP=interp1d(P,k1)
-        self.dHfgdP=interp1d(P,k2)
-
-        vf=[]
-        vg=[]
-        print("Calculating specific volume gradient... ...")
-        for i in tqdm(P):
-            vf.append(PropsSI("V","P",i,'Q',0,'water'))
-            vg.append(PropsSI("V","P",i,'Q',1,'water'))
-
-        vfGrad=np.gradient(Hf)
-        vfg=np.array(vg)-np.array(vf)
-        vfgGrad=np.gradient(vfg)
-
-        k1=vfGrad/PressureGrad
-        k2=vfgGrad/PressureGrad
-        self.dVfdP=interp1d(P,k1)
-        self.dVfgdP=interp1d(P,k2)
-        
-    def DRoub(self,SubCooledRegion:object,MetalLump:object,PrimaryLump:object):
-
-        A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
-        B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
-        C=self.area*self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)
-        D=C*self.dHfdP(self.Pressure)
-        E=C*self.Xe*self.dHfgdP(self.Pressure)/2
-        F=C*self.hfg/2
-
-        m=-(self.vf+self.Xe*self.vfg/2)**2
-        n=self.dVfdP(self.Pressure)+self.Xe*self.dVfgdP(self.Pressure)/2
-        p=self.vfg/2
-
-        alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
-        alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
-        alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
-
-        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*(self.hf+self.Xe*self.hfg)
-        k2=B*SubCooledRegion.DLs1()
-
-        delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
-        deltarou=-alpha2*(-n*F-p*(D+E))+(k1-k2)*(alpha1*p-alpha3*n)
-
-        dtdRoub=deltarou/delta
-        return dtdRoub
-    
-    def DXsteam(self,PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
-
-
-        A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
-        B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
-        C=self.area*self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)
-        D=C*self.dHfdP(self.Pressure)
-        E=C*self.Xe*self.dHfgdP(self.Pressure)/2
-        F=C*self.hfg/2
-
-        m=-(self.vf+self.Xe*self.vfg/2)**2
-        n=self.dVfdP(self.Pressure)+self.Xe*self.dVfgdP(self.Pressure)/2
-        p=self.vfg/2
-
-        alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
-        alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
-        alpha3=self.vfg/(2*(self.vf+self.Xe*self.vfg/2)**2)
-        hfxe=self.hf+self.Xe*self.hfg
-
-        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*hfxe
-        k2=B*SubCooledRegion.DLs1()
-
-        delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
-        deltaXe=m*(alpha2*F-alpha3*(k1-k2))-p*A*alpha2
-
-
-        dtdXe=deltaXe/delta
-
-
-        return dtdXe
-    
-    def DPressure(self,SubCooledRegion:object):
-
-        A=self.area*(SubCooledRegion.length-SubCooledRegion.Ls1)*(self.hf+self.Xe*self.hfg/2)
-        B=self.area*self.density*(self.hf+self.Xe*self.hfg/2)
-        C=self.area*self.density*(SubCooledRegion.length-SubCooledRegion.Ls1)
-        D=C*self.dHfdP(self.Pressure)
-        E=C*self.Xe*self.dHfgdP(self.Pressure)/2
-        F=C*self.hfg/2
-
-        m=-(self.vf+self.Xe*self.vfg/2)**2
-        n=self.dVfdP(self.Pressure)+self.Xe*self.dVfgdP(self.Pressure)/2
-        p=self.vfg/2
-
-        alpha1=(self.Xe*self.dVfgdP(self.Pressure))/(self.vf+self.Xe*self.vfg/2)**2
-        alpha2=((SubCooledRegion.W1-SubCooledRegion.W2)+self.area*self.density*SubCooledRegion.DLs1())/(self.area*(SubCooledRegion.length-SubCooledRegion.Ls1))
-        alpha3=self.vfg/((self.vf+self.Xe*self.vfg/2)**2*2)
-
-        k1=MetalLump.Ums2*PrimaryLump.Pr2*(SubCooledRegion.length-SubCooledRegion.Ls1)*(MetalLump.Tm2+MetalLump.Tm3-2*self.Tstat)+\
-        SubCooledRegion.W2*self.hf-self.W3*(self.hf+self.Xe*self.hfg)
-        k2=B*SubCooledRegion.DLs1()
-
-        delta=m*(-alpha1*F-alpha3*(D+E))+A*(alpha1*p-n*alpha3)
-        deltaP=m*(alpha1*(k2-k1)-alpha2*(D+E))-A*n*alpha2
-
-        dtdPressure=deltaP/delta
-
-        return  dtdPressure
-
-
-    def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
-        
-        try:
-            a=np.array(argsforfunction)
-            l=len(a)
-        except:
-            pass
-
-        if argsforfunction==None:
-            return function()*time_step+intitial_cond
-        elif l==1:
-            arg1=argsforfunction[0]
-            return function(arg1)*time_step+intitial_cond  
-        elif l==2:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            return function(arg1,arg2)*time_step+intitial_cond
-        elif l==3:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            arg3=argsforfunction[2]
-            return function(arg1,arg2,arg3)*time_step+intitial_cond  
-        else:
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
-    
-class DrumRegion():
-    def __init__(self,DrumWaterDTemperature:float,FeedWaterTemp:float):
-
-        ''' Flow rates needs to be fixed '''
-        self.area=10.2991
-
-        #objects 
-        self.BoilingRegion=BoilingRegion
-        self.PrimaryLump=PrimaryLump
-        self.MetalLump=MetalLump
-        self.SubCooledRegion=SubCooledRegion
-
-        """user defined value"""
-        self.Xe=0.2        #steam quality
-        self.Lw=2.935224 #Lw
-        self.Wpi=4964.96   #hot_leg_flow_rate
-        self.Wfi=470.226   #Trubine_outlet
-        self.W1=2349.45    #SFSL
-        self.W2=self.W1
-        self.W3=self.W1
-        self.W4=self.W1
-        self.Wdw=1212
-        #feed water is coming from the feed water pump after condensation 
-        #so after this constructor it will be 
-        #                                              "DrumRegion.Wfi=FeedWaterPump.outlet"
-
-        Pressure=np.linspace(1e3,2.2e7,num=200)
-        Vf=[]
-        Vg=[]
-
-        for i in Pressure:
-            Vf.append(PropsSI("V","P",i,'Q',0,'water'))
-            Vg.append(PropsSI("V","P",i,'Q',1,'water'))
-                
-        PressureGrad=np.gradient(Pressure)
-        VfGrad=np.gradient(Vf)
-        Vfg=np.array(Vf)-np.array(Vg)
-        VfgGrad=np.gradient(Vfg)
-
-        k1=VfGrad/PressureGrad
-        k2=VfgGrad/PressureGrad
-        self.dVfdPGrad=interp1d(Pressure,k1)
-        self.dVfgdPGrad=interp1d(Pressure,k2)
-
-        """initial conditions """
-        self.Tw=DrumWaterDTemperature
-        self.densityD=763.51
-        self.Lw=2.935224 #Ldw
-        self.Tfi=FeedWaterTemp
-
-        """design parametrs of the DrumRegion """
-
-        self.Vdr=124.28
-        self.Pressure=5850053.972
-        self.Cl=0.12232 #steam valve co efficient needs to be adjusted 
-
-    def Dpressure(self,BoilingRegion:object,
-                 PrimaryLump:object,MetalLump:object,SubCooledRegion:object):
-
-        Vf=(PropsSI("V","P",self.Pressure,'Q',0,'water'))
-        Vg=(PropsSI("V","P",self.Pressure,'Q',1,'water'))
-        Vfg=Vf-Vg
-
-        C1=-(self.dVfgdPGrad(self.Pressure)/(Vf+BoilingRegion.Xe*Vfg)**2)
-        C2=-((self.dVfdPGrad(self.Pressure)+BoilingRegion.Xe*self.dVfgdPGrad(self.Pressure))/(Vf+BoilingRegion.Xe*Vfg)**2)
-
-        dtdP=(((self.W2-self.W3)/self.Vdr)-C2*BoilingRegion.DXe(PrimaryLump,MetalLump,SubCooledRegion))/C1
-        self.Wso=self.Cl*self.Pressure #input to the turbine 
-
-        return dtdP
-    
-    def DLw(self):
-        dtdlw=(-self.Wdw+(1-BoilingRegion.Xe)*self.W3+self.Wfi)/(self.densityD*self.area)
-        return dtdlw
-
-
-    def DTw(self):
-
-        lw=(-self.Wdw+(1-BoilingRegion.Xe)*self.W3-BoilingRegion.Xe*self.W3+self.Wfi)*self.Tw
-        val=(self.Wfi*self.Tfi+(1-BoilingRegion.Xe)*self.W3*BoilingRegion.Tstat-self.Wdw*self.Tw)-lw
-        dtdTw=val/self.Tw
-
-        return dtdTw
-
-    
-    def DDensityg(self):
-
-        dtdroug=(self.Xe*self.W4-self.Cl*self.Pressure+self.density*self.area*self.DLw())/(self.Vdr-self.area*self.Lw)
-        return dtdroug
-    
-    ''' done till here'''
-
-    
-    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-        l=len(argsforfunction)
-
-        if l==0:
-            return function()*time_step+intitial_cond
-        elif l==1:
-            arg1=argsforfunction[0]
-            return function(arg1)*time_step+intitial_cond  
-        elif l==2:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            return function(arg1,arg2)*time_step+intitial_cond
-        elif l==3:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            arg3=argsforfunction[2]
-            return function(arg1,arg2,arg3)*time_step+intitial_cond  
-        else:
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
-        
-class DownComerRegion():
-    def __init__(self,DownComerTemperature:float):  
-        
-        self.area=2.97376
-        self.density=805.645
-        self.Ld=10.8269
-        self.Mass=self.area*self.Ld*self.density
-
-        '''initial conditions '''
-
-
-        self.Td=DownComerTemperature
-
-    def DTd(self,DrumRegion:object):
-
-        dtdTd=DrumRegion.W1*(DrumRegion.Tw-self.Td)/self.Mass
-        return dtdTd
-
-
-        
-    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
-        l=len(argsforfunction)
-
-        if l==0:
-            return function()*time_step+intitial_cond
-        elif l==1:
-            arg1=argsforfunction[0]
-            return function(arg1)*time_step+intitial_cond  
-        elif l==2:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            return function(arg1,arg2)*time_step+intitial_cond
-        elif l==3:
-            arg1=argsforfunction[0]
-            arg2=argsforfunction[1]
-            arg3=argsforfunction[2]
-            return function(arg1,arg2,arg3)*time_step+intitial_cond  
-        else:
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
-            
-class PrimaryWaterUTSGOutlet():
-	def __init(self,mass:float,flowrate:float):
-		pass 
-
-    
-logo()
-
-InletPlenum=InletPlenum(430,pressure=10e6)
-PrimaryLump=PrimaryLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,300,300,300],ProutTemperature=450,Pressure=10e6)
-MetalLump=MetalLump(PrimaryLumpTemperature=[400,370,350,300],MetalLumpTemperature=[300,330,300,300],Temperature_SFBL=300,Temperature_SFSL=334)
-SubCooledRegion=SubCooledRegion(Tavg=400)
-BoilingRegion=BoilingRegion(FlowRateOut=343,DowncomerTemp=300,BoilingTemp=350,Pressure=10e6)
-BoilingRegion.Xe=1
-DrumRegion=DrumRegion(DrumWaterDTemperature=400,FeedWaterTemp=300)
-DownComerRegion=DownComerRegion(DownComerTemperature=300)
-
-t=0
-dt=.01
-T=[]
-Temp=[]
-Temp1=[]
-Temp2=[]
-Temp3=[]
-
-Tmm1=[]
-Tmm2=[]
-Tmm3=[]
-Tmm4=[]
-
-
-while t<100:
-    '''Recirculation flow rate should be calculated here '''
-    InletPlenum.Temperature=InletPlenum.integrator(InletPlenum.DTpi,argsforfunction=[],intitial_cond=InletPlenum.Temperature,time_step=dt)
-    Tp1=PrimaryLump.integrator(PrimaryLump.DTp1,[InletPlenum],intitial_cond=PrimaryLump.Tp1,time_step=dt)
-    Tp2=PrimaryLump.integrator(PrimaryLump.DTp2,[SubCooledRegion],intitial_cond=PrimaryLump.Tp2,time_step=dt)
-    Tp3=PrimaryLump.integrator(PrimaryLump.DTp3,[],intitial_cond=PrimaryLump.Tp3,time_step=dt)
-    Tp4=PrimaryLump.integrator(PrimaryLump.DTp4,[SubCooledRegion],intitial_cond=PrimaryLump.Tp4,time_step=dt)
-    Tm1=MetalLump.integrator(function=MetalLump.DTm1,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm1,time_step=dt)
-    Tm2=MetalLump.integrator(function=MetalLump.DTm2,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm2,time_step=dt)
-    Tm3=MetalLump.integrator(function=MetalLump.DTm3,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm3,time_step=dt)
-    Tm4=MetalLump.integrator(function=MetalLump.DTm4,argsforfunction=[SubCooledRegion],intitial_cond=MetalLump.Tm4,time_step=dt)
-    Ls1=SubCooledRegion.integrator(SubCooledRegion.DLs1,[],intitial_cond=SubCooledRegion.Ls1,time_step=dt)
-    
-    Pressure=BoilingRegion.integrator(BoilingRegion.DPressure,[SubCooledRegion],intitial_cond=BoilingRegion.Pressure,time_step=dt)
-    Xe=BoilingRegion.integrator(BoilingRegion.DXsteam,argsforfunction=[PrimaryLump,MetalLump,SubCooledRegion],intitial_cond=BoilingRegion.Xe,time_step=dt)
-    #print(BoilingRegion.DXsteam(PrimaryLump,MetalLump,SubCooledRegion)*dt,'  ',BoilingRegion.DPressure(SubCooledRegion)*dt)
-
-
-    PrimaryLump.Tp1=Tp1
-    PrimaryLump.Tp2=Tp2
-    PrimaryLump.Tp3=Tp3
-    PrimaryLump.Tp4=Tp4
-
-    PrimaryLump.Tm1=Tm1
-    PrimaryLump.Tm2=Tm2
-    PrimaryLump.Tm3=Tm3
-    PrimaryLump.Tm4=Tm4
-
-    MetalLump.Tm1=Tm1
-    MetalLump.Tm2=Tm2
-    MetalLump.Tm3=Tm3
-    MetalLump.Tm4=Tm4
-
-    MetalLump.Tp1=Tp1
-    MetalLump.Tp2=Tp2
-    MetalLump.Tp3=Tp3
-    MetalLump.Tp4=Tp4
-
-    SubCooledRegion.Ls1=Ls1
-    BoilingRegion.Xe=Xe
-    BoilingRegion.Pressure=Pressure
-
-    Temp.append(Ls1)
-    Temp1.append(PrimaryLump.Tp2-273)
-    Temp2.append(PrimaryLump.Tp3-273)
-    Temp3.append(PrimaryLump.Tp4-273)
-
-    Tmm1.append(Tm1-273)
-    Tmm2.append(Tm2-273)
-    Tmm3.append(Pressure)
-    Tmm4.append(Xe)
-
-    T.append(t)
-
-    if t>50 and t<60:
-        SubCooledRegion.W1=120
-        SubCooledRegion.W2=119.999
-    if t>60 and t<70:
-        SubCooledRegion.W1=119.99999
-        SubCooledRegion.W2=120
-    else:
-        SubCooledRegion.W2=120
-        SubCooledRegion.W1=120    
-    t=dt+t
-    #print("%.6f" %(InletPlenum.Temperature-273),"   ",'%.6f'%(PrimaryLump.Tp1-273))
-
-
-
-plt.plot(T,Tmm3,'--')
-
-plt.show()
-
