@@ -131,5 +131,4 @@ while t<1000:
 import matplotlib.pyplot as plt
 plt.plot(time,y)
 plt.show()
-            raise   AttributeError("agrs in your differential function were not correct! Fix them")
-        
+            
