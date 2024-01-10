@@ -26,7 +26,7 @@ class Pressurizer():
                                 will be calculated
         -----------------------------------------------------------------------------------------------
         '''
-        self.V_times_nu=np.array([.5991,0.1814,0.1814,1.3164,0.2752,0.277,0.022,0.6022,0.2776,0.1927])
+        self.V_times_nu=np.array([.5991,0.1814,0.1814,1.3164,1.3164,0.2752,0.277,0.277,0.022,0.6022,0.6022,0.2776,0.2776,0.1927])
 
         ''' Q--->  0  ----> represents water
             Q--->  1  ----> represents steam
@@ -35,15 +35,16 @@ class Pressurizer():
         self.rho_s=PropsSI("D","P",self.Pressure,'Q',1,'water')
         self.Nu_w=1/PropsSI("D",'P',self.Pressure,'Q',0,'water')
         self.Nu_s=1/PropsSI("D",'P',self.Pressure,'Q',1,'water')
-        self.h_w=PropsSI(("H",'P',self.Pressure,'Q',0,'water'))
+        self.h_w=PropsSI("H",'P',self.Pressure,'Q',0,'water')
         self.h_spr=PropsSI("H","T",Temp_coldleg,'Q',0,'water')
 
         '''------------------partial derivative co-efficient----------'''
         self.k1p=PropsSI('d(D)/d(T)|P','P',self.Pressure,'Q',0,'Water')
         self.k2p=PropsSI('d(D)/d(T)|P','P',self.Pressure,'Q',1,'Water')
-        self.k3p=PropsSI('d(h)/d(T)|P','P',self.Pressure,'Q',1,'Water')
+        self.k3p=PropsSI('d(H)/d(T)|P','P',self.Pressure,'Q',1,'Water')
         
-        '''-------------calculation of partital derivative ----------'''
+        '''-------------  calculation of partital derivative  ----------'''
+        
         Pressure_=np.logspace(3,16.909,100000,base=np.e)
         density_=np.array(PropsSI("D",'P',Pressure_,'Q',0,'water'))
         nu_s=1/density_
@@ -122,5 +123,4 @@ class Pressurizer():
         else:
             raise   AttributeError("agrs in your differential function were not correct! Fix them")  
 
-
-'''------------------------------------------------------------ Done & final ---------------------------------------------------- '''   
+'''------------------------------------------------------------ Done---------------------------------------------------- '''    
