@@ -5,7 +5,9 @@ from CoolProp.CoolProp import PropsSI
 """    -------------------------- Model Begin -----------------------------------------"""
 
 class u_tube_steam_generator(): 
-    def __init__(self,primary_coolant_inlet_temperature:float,feed_water_inlet_temperature:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list):
+    def __init__(self,primary_coolant_inlet_temperature:float,feed_water_inlet_temperature:float,drum_water_temp:float,
+                 avg_sub_cool_temp:float,feed_water_flow_rate:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list,
+                 Pressure:float):
         
         '''------------------------       design parameters        -------------------'''
         self.N=3388
@@ -15,11 +17,14 @@ class u_tube_steam_generator():
         self.R_in=9.75e-2 #needs to be checked 
         self.R_out=11e-2  #needs to be checked
         self.k=55.0012
+        self.Pressure=Pressure
         '''------------------------        area and volume          ------------------'''
         self.P_r1=2*np.pi*self.R_in
         self.P_r2=2*np.pi*self.R_out
         self.Ap=self.N*np.pi*self.R_in**2
+        self.Afs=5.63643
         self.rho_m=8050                #needs the confirmation 
+        self.rho_b=PropsSI('D',"P",5.9e6,'Q',0.233,'water')
         self.Vp=30.5
         self.Vr=13.2523
         self.Vdr=124.55748301
@@ -44,14 +49,23 @@ class u_tube_steam_generator():
 
         self.Tfi=feed_water_inlet_temperature
         self.Tpi=primary_coolant_inlet_temperature
+        self.Ts1=avg_sub_cool_temp
+        self.Tsat=545.31667
+        self.Td=535.76111
+        self.Tw=drum_water_temp
 
         self.Cp1=PropsSI("C","T",self.Tp1,'Q',0,'water')
         self.Cm=460
 
         '''-------------------------       flow rates             ----------------------'''
         self.Win=4950
-        self.Wp1=self.W_in
-        self.Wpout=self.W_p1
+        self.Wp1=self.Win
+        self.Wpout=self.Wp1
+        self.W1=892         #not sure! 
+        self.W2=self.W1
+        self.W3=self.W1
+        self.W4=self.W1
+        self.Wfi=feed_water_flow_rate
         '''-------------------------      mass calculation        ----------------------'''
         self.mpi=PropsSI('D','T',primary_coolant_inlet_temperature,'Q',0,'water')*self.Vpi
         self.mp1=PropsSI('D','T',self.Tp1,'Q',0,'water')*self.P_r1*self.L_w
@@ -63,17 +77,18 @@ class u_tube_steam_generator():
 
         self.hi=PropsSI('H','T',primary_coolant_inlet_temperature,'Q',0,'water')
         self.hd=PropsSI('H','T',feed_water_inlet_temperature,'Q',0,'water')
+        self.hb=PropsSI('H',"P",5.9e6,'Q',0.233,'water')
 
-        self.Upm=1/((1/self.hi)+(self.R_in/self.k)*(np.log10((self.Rout+self.R_in)/((self.R_in*2)))))
-        self.Ums1=1/((1/self.hd)+(self.R_out/self.k)*(np.log10(2*self.R_out/(self.Rout+self.R_in))))
-        self.Ums2=self.Ums1
+        self.Upm=1/((1/self.hi)+(self.R_in/self.k)*(np.log10((self.R_out+self.R_in)/((self.R_in*2)))))
+        self.Ums1=1/((1/self.hd)+(self.R_out/self.k)*(np.log10(2*self.R_out/(self.R_out+self.R_in))))
+        self.Ums2=1/((1/self.hb)+(self.R_out/self.k)*(np.log10(2*self.R_out/(self.R_out+self.R_in))))
 
     
     '''--------------------------------------------primary loop begin -------------------------------'''
   
     def DTpi(self,Hot_leg_temp:float):
         
-        dtdTpi=self.Win*(Hot_leg_temp-self.T_pi)/self.mpi
+        dtdTpi=self.Win*(Hot_leg_temp-self.Tpi)/self.mpi
         return dtdTpi
     
     def DLs1(self):
@@ -138,61 +153,94 @@ class u_tube_steam_generator():
 
     '''-------------------------------------------- Metal lump begin -------------------------------'''
     
-    def DTm1(self,avg_sub_cool_temp:float):
-        Ts1=avg_sub_cool_temp
-        a=(self.Upm*self.P_r1*self.L_w*(self.Tp1-self.Tm1)-self.Ums1*self.P_r2*self.L_w*(self.Tm1-Ts1))/(self.mm1*self.Cm)
+    def DTm1(self):
+
+        a=(self.Upm*self.P_r1*self.L_w*(self.Tp1-self.Tm1)-self.Ums1*self.P_r2*self.L_w*(self.Tm1-self.Ts1))/(self.mm1*self.Cm)
         b=-(self.Tm1-self.Tm2)/self.L_w
         c=self.DLs1()
         dtdTm1=a+b*c
         return dtdTm1
     
-    def DTm2(self,Tsat):
+    def DTm2(self):
 
         a=self.Upm*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
         b=-(self.Upm*self.P_r1*(self.L-self.L_w)+self.Ums2*self.P_r2*(self.L-self.L_w))*self.Tm2/(self.mm2*self.Cm)
-        c=-self.Ums2*self.P_r2*(self.L-self.L_w)*Tsat/(self.mm2*self.Cm)
+        c=self.Ums2*self.P_r2*(self.L-self.L_w)*self.Tsat/(self.mm2*self.Cm)
         d=(self.Tm2-self.Tm1)/(2*(self.L-self.L_w))
 
         dtdTm2=a+b+c+d*self.DLs1()
         
         return dtdTm2
     
-    def DTm3(self,Tsat):
+    def DTm3(self):
 
         a=self.Upm*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
         b=-(self.Upm*self.P_r1*(self.L-self.L_w)+self.Ums2*self.P_r2*(self.L-self.L_w))*self.Tm3/(self.mm2*self.Cm)
-        c=-self.Ums2*self.P_r2*(self.L-self.L_w)*Tsat/(self.mm2*self.Cm)
+        c=self.Ums2*self.P_r2*(self.L-self.L_w)*self.Tsat/(self.mm2*self.Cm)
         d=(self.Tm3-self.Tm4)/(2*(self.L-self.L_w))
 
         dtdTm3=a+b+c+d*self.DLs1()
         
         return dtdTm3
     
-    def DTm4(self,avg_sub_cool_temp:float):
-        Ts1=avg_sub_cool_temp
+    def DTm4(self):
 
         a=self.Upm*self.P_r1*(self.L_w)*self.Tp4/(self.mm1*self.Cm)
+        b=-(self.Upm*self.P_r1*(self.L_w)+self.Ums1*self.P_r2*(self.L_w))*self.Tm4/(self.mm1*self.Cm)
+        c=-self.Ums1*self.P_r2*(self.L_w)*self.Ts1/(self.mm1*self.Cm)
+        d=((self.Tm3-self.Tm4)/(2*(self.L_w)))*self.DLs1()
 
-        b=-(self.Upm*self.P_r1*(self.L_w)+self.Ums2*self.P_r2*(self.L_w))*self.Tm4/(self.mm1*self.Cm)
-        c=-self.Ums2*self.P_r2*(self.L_w)*Ts1/(self.mm1*self.Cm)
-        d=-(self.Tm3-self.Tm4)/(2*(self.L_w))
-
-        c=self.DLs1()
-        dtdTm4=a+b*c
+        dtdTm4=a+b+c+d
         return dtdTm4
     
 
     '''-------------------------------------------- Metal lump done -------------------------------'''
-    
-    def integrator(self,function,argsforfunction:None,intitial_cond,time_step):
-        
-        try:
-            a=np.array(argsforfunction)
-            l=len(a)
-        except:
-            pass
 
-        if argsforfunction==None:
+    ''' ------------------------------------------------------------------------------------------'''
+    ''' ----------------------------------------- secondary lump-----------------------------------'''
+    def DTs1(self):
+
+        Cp2=PropsSI("C","T",self.Ts1,'Q',0,'water')
+        rho_p=PropsSI("D",'T',self.Tp1,'Q',0,'water')
+        rho_s1=PropsSI("D",'T',self.Td,'Q',0,'water')
+        self.W2=self.W1-self.DLs1()*rho_p*self.Ap
+        a=self.Ums1*self.P_r2*self.L_w*(self.Tm1+self.Tm1-2*self.Ts1)-self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
+        b=self.Afs*rho_s1*self.L_w*Cp2
+
+        dtdTs1=a/b
+        return dtdTs1
+
+    def Drho_b(self):
+
+        a=(self.W2-self.w3)/(self.Afs*(self.L-self.L_w))
+        b=self.rho_b*self.DLs1()/(self.L-self.L_w)
+
+        dtdrho_b=a+b
+        return dtdrho_b
+    
+    def Dh_b(self):
+        a=self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm2-self.Tsat)+self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm3-self.Tsat)
+        b=self.W2*PropsSI('H','D',self.Ts1,'Q',0,'water')-self.W3*PropsSI('H','D',self.Ts1,'Q',0.233,'water')
+        c=self.rho_b*self.Afs*self.hb*self.DLs1()
+        d=self.rho_b*self.Afs*(self.L-self.L_w)
+
+        dtdh_b=(a+b+c)/d
+        return dtdh_b
+    def Drho_r(self):
+        dtdrho_r=(self.w3-self.w2)/self.Vr
+        return dtdrho_r
+    
+    def DTdw(self):
+        Xe=0.8
+        Adw=10.3
+        self.rho_g=PropsSI("D",' T',self.Tw,"Q",Xe,'water')
+        a=(self.Wfi*self.Tfi-(1-Xe)*self.W4*self.Tsat-self.W1*self.Tw)/(Adw*self.rho_g*self.Ld)
+        return a
+
+    def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
+        l=len(argsforfunction)
+
+        if l==0:
             return function()*time_step+intitial_cond
         elif l==1:
             arg1=argsforfunction[0]
