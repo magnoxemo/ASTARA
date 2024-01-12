@@ -217,12 +217,17 @@ class u_tube_steam_generator():
 
         dtdrho_b=a+b
         return dtdrho_b
-    
+        
     def Dh_b(self):
         a=self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm2-self.Tsat)+self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm3-self.Tsat)
         b=self.W2*PropsSI('H','D',self.Ts1,'Q',0,'water')-self.W3*PropsSI('H','D',self.Ts1,'Q',0.233,'water')
         c=self.rho_b*self.Afs*self.hb*self.DLs1()
+        f=(self.L-self.L_w)*self.hb*self.Drho_b()*self.Afs
         d=self.rho_b*self.Afs*(self.L-self.L_w)
+
+        dtdh_b=(a+b+c-f)/d
+        return dtdh_b
+        
 
         dtdh_b=(a+b+c)/d
         return dtdh_b
