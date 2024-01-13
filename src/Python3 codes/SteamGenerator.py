@@ -12,17 +12,19 @@ class u_tube_steam_generator():
         '''------------------------       design parameters        -------------------'''
         self.N=3388
         self.L=10.83
-        self.L_w=1.057
-        self.Ld=10.83
+        self.L_w=1.057   #sub cool region height
+        self.Ldw=10.83   #Drum water level height
         self.R_in=9.75e-2 #needs to be checked 
         self.R_out=11e-2  #needs to be checked
         self.k=55.0012
         self.Pressure=Pressure
+        self.Cl=80e-6
         '''------------------------        area and volume          ------------------'''
         self.P_r1=2*np.pi*self.R_in
         self.P_r2=2*np.pi*self.R_out
         self.Ap=self.N*np.pi*self.R_in**2
         self.Afs=5.63643
+        self.Ad=9.39528444
         self.rho_m=8050                #needs the confirmation 
         self.rho_b=PropsSI('D',"P",5.9e6,'Q',0.233,'water')
         self.Vp=30.5
@@ -52,7 +54,7 @@ class u_tube_steam_generator():
         self.Ts1=avg_sub_cool_temp
         self.Tsat=545.31667
         self.Td=535.76111
-        self.Tw=drum_water_temp
+        self.Tdw=drum_water_temp
 
         self.Cp1=PropsSI("C","T",self.Tp1,'Q',0,'water')
         self.Cm=460
@@ -61,6 +63,7 @@ class u_tube_steam_generator():
         self.Win=4950
         self.Wp1=self.Win
         self.Wpout=self.Wp1
+        '''----------------------------------secondary loop------------------------------'''
         self.W1=892         #not sure! 
         self.W2=self.W1
         self.W3=self.W1
@@ -201,10 +204,9 @@ class u_tube_steam_generator():
     def DTs1(self):
 
         Cp2=PropsSI("C","T",self.Ts1,'Q',0,'water')
-        rho_p=PropsSI("D",'T',self.Tp1,'Q',0,'water')
         rho_s1=PropsSI("D",'T',self.Td,'Q',0,'water')
-        self.W2=self.W1-self.DLs1()*rho_p*self.Ap
-        a=self.Ums1*self.P_r2*self.L_w*(self.Tm1+self.Tm1-2*self.Ts1)-self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
+        self.W2=self.W1-self.DLs1()*rho_s1*self.Ap
+        a=self.Ums1*self.P_r2*self.L_w*(self.Tm1+self.Tm4-2*self.Ts1)-self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
         b=self.Afs*rho_s1*self.L_w*Cp2
 
         dtdTs1=a/b
@@ -212,12 +214,12 @@ class u_tube_steam_generator():
 
     def Drho_b(self):
 
-        a=(self.W2-self.w3)/(self.Afs*(self.L-self.L_w))
+        a=(self.W2-self.W3)/(self.Afs*(self.L-self.L_w))
         b=self.rho_b*self.DLs1()/(self.L-self.L_w)
 
         dtdrho_b=a+b
         return dtdrho_b
-        
+    
     def Dh_b(self):
         a=self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm2-self.Tsat)+self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm3-self.Tsat)
         b=self.W2*PropsSI('H','D',self.Ts1,'Q',0,'water')-self.W3*PropsSI('H','D',self.Ts1,'Q',0.233,'water')
@@ -227,20 +229,39 @@ class u_tube_steam_generator():
 
         dtdh_b=(a+b+c-f)/d
         return dtdh_b
-        
-
-        dtdh_b=(a+b+c)/d
-        return dtdh_b
+    
     def Drho_r(self):
-        dtdrho_r=(self.w3-self.w2)/self.Vr
+        dtdrho_r=(self.W3-self.W2)/self.Vr
         return dtdrho_r
     
+    def DLdw(self):
+        Xe=0.2
+        a=-self.W1-(1-Xe)*self.W3+self.Wfi
+        rho_d=PropsSI('D',"T",self.Tfi,'Q',0,'water')
+        dtdLdw=a/(rho_d*self.Ad)
+        return dtdLdw
+    
     def DTdw(self):
-        Xe=0.8
-        Adw=10.3
-        self.rho_g=PropsSI("D",' T',self.Tw,"Q",Xe,'water')
-        a=(self.Wfi*self.Tfi-(1-Xe)*self.W4*self.Tsat-self.W1*self.Tw)/(Adw*self.rho_g*self.Ld)
-        return a
+        Xe=0.2
+        self.rho_g=PropsSI("D",' T',self.Tdw,"Q",Xe,'water')
+        rho_d=PropsSI('D',"T",self.Tfi,'Q',0,'water')
+        dtdTdw=(self.Wfi*self.Tfi-(1-Xe)*self.W4*self.Tsat-self.W1*self.Tdw-rho_d*self.Ad*self.DLdw())/(self.Ad*rho_d*self.Ldw)
+        return dtdTdw
+    
+    def Drho_g(self):
+        Xe=0.2
+        self.rho_g=PropsSI("D",' T',self.Tdw,"Q",Xe,'water')
+        a=self.W4*Xe-self.Cl*self.Pressure+self.rho_g*self.Ad*self.DLdw()
+        b=self.Vdr-self.Ad*self.Ldw 
+        dtdrho_g=a/b
+        return dtdrho_g
+    
+    '''------------------------------- Down Comer region-------------------------'''
+
+    def DTd(self):
+        rho_d=PropsSI('D',"T",self.Tfi,'Q',0,'water')
+        dtdTd=(self.Tdw-self.Td)*self.W1/(self.Ldw*self.Ad*rho_d)
+        return dtdTd
 
     def integrator(self,function,argsforfunction:list,intitial_cond,time_step):
         l=len(argsforfunction)
