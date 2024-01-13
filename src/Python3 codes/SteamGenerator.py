@@ -5,7 +5,7 @@ from CoolProp.CoolProp import PropsSI
 """    -------------------------- Model Begin -----------------------------------------"""
 
 class u_tube_steam_generator(): 
-    def __init__(self,primary_coolant_inlet_temperature:float,feed_water_inlet_temperature:float,drum_water_temp:float,
+    def __init__(self,primary_coolant_inlet_temperature:float,primary_coolant_outlet_temperature:float,feed_water_inlet_temperature:float,drum_water_temp:float,
                  avg_sub_cool_temp:float,feed_water_flow_rate:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list,
                  Pressure:float):
         
@@ -14,15 +14,15 @@ class u_tube_steam_generator():
         self.L=10.83
         self.L_w=1.057   #sub cool region height
         self.Ldw=10.83   #Drum water level height
-        self.R_in=9.75e-2 #needs to be checked 
-        self.R_out=11e-2  #needs to be checked
+        self.R_in=0.019685 #needs to be checked 
+        self.R_out=0.022225  #needs to be checked
         self.k=55.0012
         self.Pressure=Pressure
         self.Cl=80e-6
         '''------------------------        area and volume          ------------------'''
         self.P_r1=2*np.pi*self.R_in
         self.P_r2=2*np.pi*self.R_out
-        self.Ap=self.N*np.pi*self.R_in**2
+        self.Ap=self.N*np.pi*self.R_in**2/4
         self.Afs=5.63643
         self.Ad=9.39528444
         self.rho_m=8050                #needs the confirmation 
@@ -51,6 +51,7 @@ class u_tube_steam_generator():
 
         self.Tfi=feed_water_inlet_temperature
         self.Tpi=primary_coolant_inlet_temperature
+        self.Tpo=primary_coolant_outlet_temperature
         self.Ts1=avg_sub_cool_temp
         self.Tsat=545.31667
         self.Td=535.76111
@@ -93,6 +94,10 @@ class u_tube_steam_generator():
         
         dtdTpi=self.Win*(Hot_leg_temp-self.Tpi)/self.mpi
         return dtdTpi
+    
+    def DTpo(self):
+        dtdTpo=(self.Tp4-self.Tpo)*self.Win/(self.mpi)
+        return dtdTpo
     
     def DLs1(self):
         rho_p=PropsSI('D','T',self.Tp1,'Q',0,'water')
