@@ -211,7 +211,7 @@ class u_tube_steam_generator():
         Cp2=PropsSI("C","T",self.Ts1,'Q',0,'water')
         rho_s1=PropsSI("D",'T',self.Td,'Q',0,'water')
         self.W2=self.W1-self.DLs1()*rho_s1*self.Ap
-        a=self.Ums1*self.P_r2*self.L_w*(self.Tm1+self.Tm4-2*self.Ts1)-self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
+        a=self.Ums1*self.P_r2*self.L_w*(self.Tm1+self.Tm4-2*self.Ts1)+self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
         b=self.Afs*rho_s1*self.L_w*Cp2
 
         dtdTs1=a/b
