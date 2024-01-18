@@ -6,7 +6,7 @@ from CoolProp.CoolProp import PropsSI
 
 class u_tube_steam_generator(): 
     def __init__(self,primary_coolant_inlet_temperature:float,primary_coolant_outlet_temperature:float,feed_water_inlet_temperature:float,drum_water_temp:float,
-                 avg_sub_cool_temp:float,feed_water_flow_rate:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list,
+                 saturation_temp:float,down_comer_temp:float,feed_water_flow_rate:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list,
                  Reactor_Pressure:float,Steam_pressure:float):
         
         '''------------------------       design parameters        -------------------'''
@@ -14,8 +14,8 @@ class u_tube_steam_generator():
         self.L=10.83
         self.L_w=3.057   #sub cool region height
         self.Ldw=10.83   #Drum water level height
-        self.R_in=0.019685 #needs to be checked 
-        self.R_out=0.022225  #needs to be checked
+        self.R_in=0.0098425 #needs to be checked 
+        self.R_out=0.0111125  #needs to be checked
         self.k=15
         self.Pressure_r=Reactor_Pressure
         self.Pressure_s=Steam_pressure
@@ -28,7 +28,7 @@ class u_tube_steam_generator():
         self.Ad=9.39528444
         self.rho_m=8050                #needs the confirmation 
         self.rho_b=PropsSI('D',"P",self.Pressure_s,'Q',0.99/2,'water')
-        self.Vp=self.Ap*self.L
+        self.Vp=30.5
         self.Vr=13.2523
         self.Vdr=124.55748301
         self.Vpi=(0.5*self.Vp-self.Ap*self.L)
@@ -53,9 +53,9 @@ class u_tube_steam_generator():
         self.Tfi=feed_water_inlet_temperature
         self.Tpi=primary_coolant_inlet_temperature
         self.Tpo=primary_coolant_outlet_temperature
-        self.Ts1=avg_sub_cool_temp
-        self.Tsat=545.31667
-        self.Td=535.76111
+        self.Ts1=(saturation_temp+down_comer_temp)/2
+        self.Tsat=saturation_temp
+        self.Td=down_comer_temp
         self.Tdw=drum_water_temp
 
         self.Cp1=PropsSI("C","T",self.Tp1,'Q',0,'water') #reactor pressure instead of the Q= 0
@@ -99,7 +99,8 @@ class u_tube_steam_generator():
         return dtdTpi
     
     def DTpo(self):
-        dtdTpo=(self.Tp4-self.Tpo)*self.Win/(self.mpi)
+        mpi=PropsSI('D','T',self.Tpi,'P',self.Pressure_r,'water')*self.Vpi
+        dtdTpo=(self.Tp4-self.Tpo)*self.Win/(mpi)
         return dtdTpo
     
     def DLs1(self):
@@ -215,15 +216,17 @@ class u_tube_steam_generator():
     ''' ------------------------------------------------------------------------------------------'''
     ''' ----------------------------------------- secondary lump-----------------------------------'''
     
-    def DTs1(self):
-
-        Cp2=PropsSI("C","T",self.Ts1,'Q',0,'water')
-        rho_s1=PropsSI("D",'T',self.Td,'Q',0,'water')
+    def DTsat(self):
+        self.Ts1=(self.Td+self.Tsat)/2
+        Cp2=PropsSI("C","T",self.Ts1,'P',self.Pressure_s,'water')
+        rho_s1=PropsSI("D",'T',self.Ts1,'P',self.Pressure_s,'water')
         self.W2=self.W1-self.DLs1()*rho_s1*self.Ap
         a=self.Ums1*self.N*self.P_r2*self.L_w*(self.Tm1+self.Tm4-2*self.Ts1)+self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
-        b=self.Afs*rho_s1*self.L_w*Cp2
+        a11=rho_s1*self.Afs*(self.Td+self.Tsat)*self.DLs1()/2
+        a22=0.5*rho_s1*self.Afs*Cp2*self.L_w*self.DTd()
+        b=0.5*self.Afs*rho_s1*self.L_w*Cp2
 
-        dtdTs1=a/b
+        dtdTs1=(a-a11-a22)/b
         return dtdTs1
 
     def Drho_b(self):
