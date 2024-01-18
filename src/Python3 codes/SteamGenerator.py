@@ -7,34 +7,35 @@ from CoolProp.CoolProp import PropsSI
 class u_tube_steam_generator(): 
     def __init__(self,primary_coolant_inlet_temperature:float,primary_coolant_outlet_temperature:float,feed_water_inlet_temperature:float,drum_water_temp:float,
                  avg_sub_cool_temp:float,feed_water_flow_rate:float,PrimaryLumpTemperature:list,MetalLumpTemperature:list,
-                 Pressure:float):
+                 Reactor_Pressure:float,Steam_pressure:float):
         
         '''------------------------       design parameters        -------------------'''
         self.N=3388
         self.L=10.83
-        self.L_w=1.057   #sub cool region height
+        self.L_w=3.057   #sub cool region height
         self.Ldw=10.83   #Drum water level height
         self.R_in=0.019685 #needs to be checked 
         self.R_out=0.022225  #needs to be checked
-        self.k=55.0012
-        self.Pressure=Pressure
+        self.k=15
+        self.Pressure_r=Reactor_Pressure
+        self.Pressure_s=Steam_pressure
         self.Cl=80e-6
         '''------------------------        area and volume          ------------------'''
         self.P_r1=2*np.pi*self.R_in
         self.P_r2=2*np.pi*self.R_out
-        self.Ap=self.N*np.pi*self.R_in**2/4
+        self.Ap=self.N*np.pi*self.R_in**2
         self.Afs=5.63643
         self.Ad=9.39528444
         self.rho_m=8050                #needs the confirmation 
-        self.rho_b=PropsSI('D',"P",5.9e6,'Q',0.233,'water')
-        self.Vp=30.5
+        self.rho_b=PropsSI('D',"P",self.Pressure_s,'Q',0.99/2,'water')
+        self.Vp=self.Ap*self.L
         self.Vr=13.2523
         self.Vdr=124.55748301
         self.Vpi=(0.5*self.Vp-self.Ap*self.L)
 
         '''------------------- coolant and metal conductivity ------------------------'''
         if len(PrimaryLumpTemperature)!=4:
-            raise ValueError(" Initial condition error!")
+            raise ValueError("Initial condition error!")
         else:
             self.Tp1=PrimaryLumpTemperature[0]
             self.Tp2=PrimaryLumpTemperature[1]
@@ -57,7 +58,7 @@ class u_tube_steam_generator():
         self.Td=535.76111
         self.Tdw=drum_water_temp
 
-        self.Cp1=PropsSI("C","T",self.Tp1,'Q',0,'water')
+        self.Cp1=PropsSI("C","T",self.Tp1,'Q',0,'water') #reactor pressure instead of the Q= 0
         self.Cm=460
 
         '''-------------------------       flow rates             ----------------------'''
@@ -70,18 +71,20 @@ class u_tube_steam_generator():
         self.W3=self.W1
         self.W4=self.W1
         self.Wfi=feed_water_flow_rate
+        self.rho_r=7.94*16.01844634
         '''-------------------------      mass calculation        ----------------------'''
-        self.mpi=PropsSI('D','T',primary_coolant_inlet_temperature,'Q',0,'water')*self.Vpi
-        self.mp1=PropsSI('D','T',self.Tp1,'Q',0,'water')*self.P_r1*self.L_w
-        self.mp2=PropsSI('D','T',self.Tp2,'Q',0,'water')*self.P_r1*(self.L-self.L_w)
-        self.mp3=self.mp2
+        self.mpi=PropsSI('D','T',primary_coolant_inlet_temperature,'P',self.Pressure_r,'water')*self.Vpi #reactor pressure instead of the Q= 0
+        self.mp1=PropsSI('D','T',self.Tp1,'P',self.Pressure_r,'water')*self.P_r1*self.L_w #reactor pressure instead of the Q= 0
+        self.mp2=PropsSI('D','T',self.Tp2,'P',self.Pressure_r,'water')*self.P_r1*(self.L-self.L_w) #reactor pressure instead of the Q= 0
+        self.mp3=PropsSI('D','T',self.Tp3,'P',self.Pressure_r,'water')*self.P_r1*(self.L-self.L_w)
+        self.mp4=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')*self.P_r1*(self.L_w)
 
         self.mm1=self.N*np.pi*self.L_w*(self.R_out**2-self.R_in**2)*self.rho_m
         self.mm2=self.N*np.pi*(self.L-self.L_w)*(self.R_out**2-self.R_in**2)*self.rho_m
 
-        self.hi=PropsSI('H','T',primary_coolant_inlet_temperature,'Q',0,'water')
-        self.hd=PropsSI('H','T',feed_water_inlet_temperature,'Q',0,'water')
-        self.hb=PropsSI('H',"P",5.9e6,'Q',0.233,'water')
+        self.hi=7.098
+        self.hd=4.974
+        self.hb=10.618
 
         self.Upm=1/((1/self.hi)+(self.R_in/self.k)*(np.log10((self.R_out+self.R_in)/((self.R_in*2)))))
         self.Ums1=1/((1/self.hd)+(self.R_out/self.k)*(np.log10(2*self.R_out/(self.R_out+self.R_in))))
@@ -106,22 +109,27 @@ class u_tube_steam_generator():
 
     def DTp1(self):
 
-        rho_p=PropsSI('D','T',self.Tp1,'Q',0,'water')
-        Cp1=PropsSI("C",'T',self.Tp1,'Q',0,'water')
-        mp1=PropsSI('D','T',self.Tp1,'Q',0,'water')*self.Ap*self.L_w
+        rho_p=PropsSI('D','T',self.Tp1,'P',self.Pressure_r,'water')
+        Cp1=PropsSI('C','T',self.Tp1,'P',self.Pressure_r,'water')
+        mp1=PropsSI('D','T',self.Tp1,'P',self.Pressure_r,'water')*self.P_r1*(self.L_w)
+
         a=self.Win*(self.Tpi-self.Tp1)/(rho_p*self.Ap*self.L_w)
-        b=self.Upm*self.P_r1*(self.L_w)*(self.Tm1-self.Tp1)
+        b=self.Upm*self.P_r1*self.L_w*self.N*(self.Tm1-self.Tp1)
         c=mp1*Cp1
+        
         dtdTp1=a+b/c
         return dtdTp1
     
     def DTp2(self):
 
-        rho_p=PropsSI('D','T',self.Tp2,'Q',0,'water')
-        Cp1=PropsSI("C",'T',self.Tp1,'Q',0,'water')
-        mp2=rho_p*self.Ap*(self.L-self.L_w)
-        a=self.Win*(self.Tpi-self.Tp1)/mp2
-        b=-(self.Upm*self.P_r1*(self.L-self.L_w)*(self.Tp2-self.Tm2))/(mp2*Cp1)
+        rho_p=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')
+        Cp1=PropsSI('C','T',self.Tp4,'P',self.Pressure_r,'water')
+        mp2=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')*self.P_r1*(self.L-self.L_w)
+
+
+
+        a=self.Win*(self.Tp1-self.Tp2)/mp2
+        b=-(self.Upm*self.P_r1*self.N*(self.L-self.L_w)*self.N*(self.Tp2-self.Tm2))/(mp2*Cp1)
         c=-((self.Tp1-self.Tp2))/(self.L-self.L_w)
         d=self.DLs1()
 
@@ -131,12 +139,12 @@ class u_tube_steam_generator():
     
     def DTp3(self):
 
-        rho_p=PropsSI('D','T',self.Tp1,'Q',0,'water')
-        Cp1=PropsSI("C",'T',self.Tp1,'Q',0,'water')
-        mp3=rho_p*self.Ap*(self.L-self.L_w)
+        rho_p=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')
+        Cp1=PropsSI('C','T',self.Tp4,'P',self.Pressure_r,'water')
+        mp3=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')*self.P_r1*(self.L-self.L_w)
 
-        a=self.Win*(self.Tp2-self.Tp3)/(rho_p*self.Ap*self.L_w)
-        b=self.Upm*self.P_r1*(self.L-self.L_w)*(self.Tm3-self.Tp3)
+        a=self.Win*(self.Tp2-self.Tp3)/(rho_p*self.Ap*(self.L-self.L_w))
+        b=self.Upm*self.P_r1*self.N*(self.L-self.L_w)*(self.Tm3-self.Tp3)
         c=mp3*Cp1
 
         dtdTp3=a+b/c
@@ -145,12 +153,12 @@ class u_tube_steam_generator():
     
     def DTp4(self):
 
-        rho_p=PropsSI('D','T',self.Tp4,'Q',0,'water')
-        Cp1=PropsSI("C",'T',self.Tp4,'Q',0,'water')
-        mp4=PropsSI('D','T',self.Tp4,'Q',0,'water')*self.Ap*self.L_w
+        rho_p=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')
+        Cp1=PropsSI('C','T',self.Tp4,'P',self.Pressure_r,'water')
+        mp4=PropsSI('D','T',self.Tp4,'P',self.Pressure_r,'water')*self.P_r1*(self.L_w)
 
         a=self.Win*(self.Tp3-self.Tp4)/(rho_p*self.Ap*self.L_w)
-        b=self.Upm*self.P_r1*(self.L_w)*(self.Tm4-self.Tp4)/(mp4*Cp1)
+        b=self.Upm*self.P_r1*self.N*(self.L_w)*(self.Tm4-self.Tp4)/(mp4*Cp1)
         c=(self.Tp3-self.Tp4)/self.L_w
         dtdTp4=a+b+c*self.DLs1()
         return dtdTp4
@@ -163,17 +171,17 @@ class u_tube_steam_generator():
     
     def DTm1(self):
 
-        a=(self.Upm*self.P_r1*self.L_w*(self.Tp1-self.Tm1)-self.Ums1*self.P_r2*self.L_w*(self.Tm1-self.Ts1))/(self.mm1*self.Cm)
-        b=-(self.Tm1-self.Tm2)/self.L_w
+        a=(self.Upm*self.N*self.P_r1*self.L_w*(self.Tp1-self.Tm1)-self.Ums1*self.N*self.P_r2*self.L_w*(self.Tm1-(self.Td+self.Tsat)/2))/(self.mm1*self.Cm)
+        b=-(self.Tm1-self.Tm2)*0.5/self.L_w
         c=self.DLs1()
         dtdTm1=a+b*c
         return dtdTm1
     
     def DTm2(self):
 
-        a=self.Upm*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
-        b=-(self.Upm*self.P_r1*(self.L-self.L_w)+self.Ums2*self.P_r2*(self.L-self.L_w))*self.Tm2/(self.mm2*self.Cm)
-        c=self.Ums2*self.P_r2*(self.L-self.L_w)*self.Tsat/(self.mm2*self.Cm)
+        a=self.Upm*self.N*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
+        b=-(self.Upm*self.N*self.P_r1*(self.L-self.L_w)+self.Ums2*self.N*self.P_r2*(self.L-self.L_w))*self.Tm2/(self.mm2*self.Cm)
+        c=self.Ums2*self.N*self.P_r2*(self.L-self.L_w)*self.Tsat/(self.mm2*self.Cm)
         d=(self.Tm2-self.Tm1)/(2*(self.L-self.L_w))
 
         dtdTm2=a+b+c+d*self.DLs1()
@@ -182,9 +190,9 @@ class u_tube_steam_generator():
     
     def DTm3(self):
 
-        a=self.Upm*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
-        b=-(self.Upm*self.P_r1*(self.L-self.L_w)+self.Ums2*self.P_r2*(self.L-self.L_w))*self.Tm3/(self.mm2*self.Cm)
-        c=self.Ums2*self.P_r2*(self.L-self.L_w)*self.Tsat/(self.mm2*self.Cm)
+        a=self.Upm*self.N*self.P_r1*(self.L-self.L_w)*self.Tp2/(self.mm2*self.Cm)
+        b=-(self.Upm*self.N*self.P_r1*(self.L-self.L_w)+self.Ums2*self.N*self.P_r2*(self.L-self.L_w))*self.Tm3/(self.mm2*self.Cm)
+        c=self.Ums2*self.N*self.P_r2*(self.L-self.L_w)*self.Tsat/(self.mm2*self.Cm)
         d=(self.Tm3-self.Tm4)/(2*(self.L-self.L_w))
 
         dtdTm3=a+b+c+d*self.DLs1()
@@ -193,9 +201,9 @@ class u_tube_steam_generator():
     
     def DTm4(self):
 
-        a=self.Upm*self.P_r1*(self.L_w)*self.Tp4/(self.mm1*self.Cm)
-        b=-(self.Upm*self.P_r1*(self.L_w)+self.Ums1*self.P_r2*(self.L_w))*self.Tm4/(self.mm1*self.Cm)
-        c=-self.Ums1*self.P_r2*(self.L_w)*self.Ts1/(self.mm1*self.Cm)
+        a=self.Upm*self.N*self.P_r1*(self.L_w)*self.Tp4/(self.mm1*self.Cm)
+        b=-(self.Upm*self.N*self.P_r1*(self.L_w)+self.Ums1*self.N*self.P_r2*(self.L_w))*self.Tm4/(self.mm1*self.Cm)
+        c=-self.Ums1*self.N*self.P_r2*(self.L_w)*self.Ts1/(self.mm1*self.Cm)
         d=((self.Tm3-self.Tm4)/(2*(self.L_w)))*self.DLs1()
 
         dtdTm4=a+b+c+d
@@ -206,12 +214,13 @@ class u_tube_steam_generator():
 
     ''' ------------------------------------------------------------------------------------------'''
     ''' ----------------------------------------- secondary lump-----------------------------------'''
+    
     def DTs1(self):
 
         Cp2=PropsSI("C","T",self.Ts1,'Q',0,'water')
         rho_s1=PropsSI("D",'T',self.Td,'Q',0,'water')
         self.W2=self.W1-self.DLs1()*rho_s1*self.Ap
-        a=self.Ums1*self.P_r2*self.L_w*(self.Tm1+self.Tm4-2*self.Ts1)+self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
+        a=self.Ums1*self.N*self.P_r2*self.L_w*(self.Tm1+self.Tm4-2*self.Ts1)+self.W1*Cp2*self.Td-self.W2*Cp2*self.Tsat
         b=self.Afs*rho_s1*self.L_w*Cp2
 
         dtdTs1=a/b
@@ -226,8 +235,8 @@ class u_tube_steam_generator():
         return dtdrho_b
     
     def Dh_b(self):
-        a=self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm2-self.Tsat)+self.Ums2*self.P_r2*(self.L-self.L_w)*(self.Tm3-self.Tsat)
-        b=self.W2*PropsSI('H','D',self.Ts1,'Q',0,'water')-self.W3*PropsSI('H','D',self.Ts1,'Q',0.233,'water')
+        a=self.Ums2*self.N*self.P_r2*(self.L-self.L_w)*(self.Tm2-self.Tsat)+self.Ums2*self.N*self.P_r2*(self.L-self.L_w)*(self.Tm3-self.Tsat)
+        b=self.W2*PropsSI('H','T',self.Ts1,'Q',0,'water')-self.W3*PropsSI('H','T',self.Ts1,'Q',0.233,'water')
         c=self.rho_b*self.Afs*self.hb*self.DLs1()
         f=(self.L-self.L_w)*self.hb*self.Drho_b()*self.Afs
         d=self.rho_b*self.Afs*(self.L-self.L_w)
@@ -256,7 +265,7 @@ class u_tube_steam_generator():
     def Drho_g(self):
         Xe=0.2
         self.rho_g=PropsSI("D",' T',self.Tdw,"Q",Xe,'water')
-        a=self.W4*Xe-self.Cl*self.Pressure+self.rho_g*self.Ad*self.DLdw()
+        a=self.W4*Xe-self.Cl*self.Pressure_s+self.rho_g*self.Ad*self.DLdw()
         b=self.Vdr-self.Ad*self.Ldw 
         dtdrho_g=a/b
         return dtdrho_g
