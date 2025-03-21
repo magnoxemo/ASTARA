@@ -1,11 +1,11 @@
 import numpy as np
 import scipy as sp
 from CoolProp.CoolProp import PropsSI
-
+form Base import Base
 """    -------------------------- Model Begin -----------------------------------------"""
 
 
-class u_tube_steam_generator:
+class u_tube_steam_generator(Base):
     def __init__(
         self,
         primary_coolant_inlet_temperature: float,
@@ -479,24 +479,3 @@ class u_tube_steam_generator:
         dtdTd = (self.Tdw - self.Td) * self.W1 / (self.Ldw * self.Ad * rho_d)
         return dtdTd
 
-    def integrator(self, function, argsforfunction: list, intitial_cond, time_step):
-        l = len(argsforfunction)
-
-        if l == 0:
-            return function() * time_step + intitial_cond
-        elif l == 1:
-            arg1 = argsforfunction[0]
-            return function(arg1) * time_step + intitial_cond
-        elif l == 2:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            return function(arg1, arg2) * time_step + intitial_cond
-        elif l == 3:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            arg3 = argsforfunction[2]
-            return function(arg1, arg2, arg3) * time_step + intitial_cond
-        else:
-            raise AttributeError(
-                "agrs in your differential function were not correct! Fix them"
-            )

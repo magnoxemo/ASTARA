@@ -1,4 +1,5 @@
-class reactor_primary_coolant_pump:
+form Base import Base
+class reactor_primary_coolant_pump(Base):
 
     def __init__(
         self,

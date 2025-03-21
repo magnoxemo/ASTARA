@@ -1,6 +1,6 @@
 from CoolProp.CoolProp import PropsSI
 import numpy as np
-
+from Base import Base
 
 class Turbine:
 
@@ -75,7 +75,7 @@ class ThrottleValve:
         self.W2nd = self.Cf_s * self.A_s * self.W_utsg * self.pos_second_v
 
 
-class NozzleChest:
+class NozzleChest(Base):
 
     def __init__(
         self,
@@ -130,27 +130,6 @@ class NozzleChest:
         dtdrou_c = (self.Wmain - self.Whp1) / self.Vc
         return dtdrou_c
 
-    def integrator(self, function, argsforfunction: list, intitial_cond, time_step):
-        l = len(argsforfunction)
-
-        if l == 0:
-            return function() * time_step + intitial_cond
-        elif l == 1:
-            arg1 = argsforfunction[0]
-            return function(arg1) * time_step + intitial_cond
-        elif l == 2:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            return function(arg1, arg2) * time_step + intitial_cond
-        elif l == 3:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            arg3 = argsforfunction[2]
-            return function(arg1, arg2, arg3) * time_step + intitial_cond
-        else:
-            raise AttributeError(
-                "agrs in your differential function were not correct! Fix them"
-            )
 
     """ As we can get the transient feed back of the enthalpy and pressure and density 
     we can find out the temperature of the steam using cool prop properties """
@@ -187,7 +166,7 @@ class MoistureSeperator:
         )  # that will go to the reheater
 
 
-class Reheater:
+class Reheater(Base):
 
     def __init__(
         self,
@@ -259,30 +238,9 @@ class Reheater:
 
         return dtdQr
 
-    def integrator(self, function, argsforfunction: list, intitial_cond, time_step):
-        l = len(argsforfunction)
-
-        if l == 0:
-            return function() * time_step + intitial_cond
-        elif l == 1:
-            arg1 = argsforfunction[0]
-            return function(arg1) * time_step + intitial_cond
-        elif l == 2:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            return function(arg1, arg2) * time_step + intitial_cond
-        elif l == 3:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            arg3 = argsforfunction[2]
-            return function(arg1, arg2, arg3) * time_step + intitial_cond
-        else:
-            raise AttributeError(
-                "agrs in your differential function were not correct! Fix them"
-            )
 
 
-class HighPressureTurbine:
+class HighPressureTurbine(Base):
     def __init__(
         self,
         inlet_flow_rate: float,
@@ -327,30 +285,9 @@ class HighPressureTurbine:
         self.Torqu = self.neu * self.Whpin * (self.Hc - self.Hex) / (2 * np.pi**2 * 120)
         # as the angular frequency is 120pi
 
-    def integrator(self, function, argsforfunction: list, intitial_cond, time_step):
-        l = len(argsforfunction)
-
-        if l == 0:
-            return function() * time_step + intitial_cond
-        elif l == 1:
-            arg1 = argsforfunction[0]
-            return function(arg1) * time_step + intitial_cond
-        elif l == 2:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            return function(arg1, arg2) * time_step + intitial_cond
-        elif l == 3:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            arg3 = argsforfunction[2]
-            return function(arg1, arg2, arg3) * time_step + intitial_cond
-        else:
-            raise AttributeError(
-                "agrs in your differential function were not correct! Fix them"
-            )
 
 
-class LowPressureTurbine:
+class LowPressureTurbine(Base):
     def __init__(
         self,
         inlet_flow_rate: float,
@@ -399,7 +336,7 @@ class LowPressureTurbine:
         # as the angular frequency is 120pi
 
 
-class LowPressureHeater:
+class LowPressureHeater(Base):
     def __init__(
         self,
         FeedWaterFlowRate: float,
@@ -434,30 +371,10 @@ class LowPressureHeater:
 
         return dtdWhpd
 
-    def integrator(self, function, argsforfunction: list, intitial_cond, time_step):
-        l = len(argsforfunction)
-
-        if l == 0:
-            return function() * time_step + intitial_cond
-        elif l == 1:
-            arg1 = argsforfunction[0]
-            return function(arg1) * time_step + intitial_cond
-        elif l == 2:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            return function(arg1, arg2) * time_step + intitial_cond
-        elif l == 3:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            arg3 = argsforfunction[2]
-            return function(arg1, arg2, arg3) * time_step + intitial_cond
-        else:
-            raise AttributeError(
-                "agrs in your differential function were not correct! Fix them"
-            )
 
 
-class HighPressureHeater:
+
+class HighPressureHeater(Base):
     def __init__(
         self,
         FeedWaterFlowRate: float,
@@ -484,27 +401,6 @@ class HighPressureHeater:
         )
         return dtdhfw
 
-    def integrator(self, function, argsforfunction: list, intitial_cond, time_step):
-        l = len(argsforfunction)
-
-        if l == 0:
-            return function() * time_step + intitial_cond
-        elif l == 1:
-            arg1 = argsforfunction[0]
-            return function(arg1) * time_step + intitial_cond
-        elif l == 2:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            return function(arg1, arg2) * time_step + intitial_cond
-        elif l == 3:
-            arg1 = argsforfunction[0]
-            arg2 = argsforfunction[1]
-            arg3 = argsforfunction[2]
-            return function(arg1, arg2, arg3) * time_step + intitial_cond
-        else:
-            raise AttributeError(
-                "agrs in your differential function were not correct! Fix them"
-            )
 
 
 # modeling done

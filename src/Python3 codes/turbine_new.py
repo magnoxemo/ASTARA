@@ -1,9 +1,9 @@
 import numpy as np
 import scipy as sp
 from CoolProp.CoolProp import PropsSI
+from Base import Base
 
-
-class Turbine_system:
+class Turbine_system(Base):
     def __init__(
         self,
         steam_flow_rate_in: float,

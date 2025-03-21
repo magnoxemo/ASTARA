@@ -1,9 +1,9 @@
 import numpy as np
 from CoolProp.CoolProp import PropsSI
 from scipy.interpolate import interp1d
+form Base import Base 
 
-
-class Pressurizer:
+class Pressurizer(Base):
     def __init__(
         self, pressurizer_diameter: float, Pressure: float, Temp_coldleg: float
     ):
