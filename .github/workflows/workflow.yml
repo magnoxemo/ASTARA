@@ -1,0 +1,35 @@
+name: tauhid
+
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, cpp_kernel ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin         
+          sudo apt install -y cmake libgtest-dev
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make -j 8
+
+      - name: Run Tests
+        shell: bash
+        run: |
+          cd build/unit_tests
+          ./parser_tests

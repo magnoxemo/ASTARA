@@ -1,27 +1,9 @@
 #include "Parser.h"
 
-astara::Function(const std::string& expr,
+astara::Function::Function(const std::string& expr,
                          const std::vector<std::string>& variable_names)
         : _expression(expr), _pos(0), _variables(variable_names) {
     
-}
-
-template<typename... Args> double 
-astara::Function::operator()(Args... args){
-
-    _values = { static_cast<double>(args)... };
-
-    if (_values.size() != _variables.size())
-        throw std::runtime_error("Incorrect number of _variables");
-
-    _pos = 0;
-    double result = parseExpression();
-    skipWhitespace();
-
-    if (_pos != _expression.size())
-        throw std::runtime_error("Unexpected characters at end of _expression");
-
-    return result;
 }
 
 
@@ -33,6 +15,22 @@ astara::Function::parseExpression() {
         if (match('+')) value += parseTerm();
         else if (match('-')) value -= parseTerm();
         else break;
+    }
+    return value;
+}
+
+double
+astara::Function::parseTerm() {
+    double value = parseFactor();
+    while (true) {
+        skipWhitespace();
+        if (match('*')) {
+            value *= parseFactor();
+        } else if (match('/')) {
+            value /= parseFactor();
+        } else {
+            break;
+        }
     }
     return value;
 }
