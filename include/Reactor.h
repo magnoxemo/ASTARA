@@ -1,84 +1,80 @@
 #ifndef ASTARA_REACTOR_H
 #define ASTARA_REACTOR_H
 
-#include <vector>
 #include <memory>
+#include <vector>
 
+namespace astara {
 
+class Function;
 
-namespace astara{
+class Reactor {
 
-    class Function;
+public:
+  Reactor(unsigned int n_groups, std::vector<double> delayed_neutron_constants);
+  ~Reactor();
 
-    class Reactor{
+  /* initial condition setters*/
 
-    public:
-        Reactor(unsigned int n_groups, std::vector<double> delayed_neutron_constants);
-        ~Reactor()=default;
+  void setInitialFuelTemperature(double fuel_temperature) {
+    _fuel_temperature = fuel_temperature;
+  };
+  void setInitialModeratorTemperature(double moderator_temperature) {
+    _moderator_temperature = moderator_temperature;
+  };
 
-        /* initial condition setters*/
+protected:
+  // transients
+  /** differential eq for transient reactivity calculation */
+  void dRhoDt();
 
-        void setInitialFuelTemperature(double fuel_temperature){
-            _fuel_temperature = fuel_temperature;
-        };
-        void setInitialModeratorTemperature(double moderator_temperature){
-            _moderator_temperature = moderator_temperature;
-        };
+  /*differential eq for transient power calculation */
+  void dPowerDt();
 
+  /*differential eq for transient fuel temperature  calculation*/
+  void dFuelTempDt();
 
-    protected:
+  /*differential eq for transient precursor calculation */
+  void dCDt();
 
-        // transients
-        /** differential eq for transient reactivity calculation */
-        void dRhoDt();
+  // reactivity control via external medium
+  void insertControlRod(double length);
+  void injectBoron(double boron_concentration);
 
-        /*differential eq for transient power calculation */
-        void dPowerDt();
+  /* calculate the over all states */
+  void updateCurrentState();
 
-        /*differential eq for transient fuel temperature  calculation*/
-        void dFuelTempDt();
+  /* Method for broadcasting current state and data to other components*/
+  void broadCastState();
 
-        /*differential eq for transient precursor calculation */
-        void dCDt();
+  /* Methods for setting functional expression */
+  void setHeatTransferCoefficient(Function *heat_transfer_co_eff_function);
+  void setFuelSpecificHeatFunction(Function *fuel_specific_function);
+  void
+  setFuelTemperatureCoEfficientFunction(Function *fuel_temp_feed_back_func);
+  void setModeratorTemperatureCoEfficientFunction(
+      Function *moderator_temp_feed_back_func);
 
-        // reactivity control via external medium
-        void insertControlRod(double length);
-        void injectBoron(double boron_concentration);
+private:
+  /**
+   * Most of the time heat transfer coefficient and fuel specific heat can be
+   * time and temperature depended. So making it a function with arbitrary
+   * number of inputs is a better idea
+   */
+  std::unique_ptr<Function> _convective_heat_transfer_co_efficient;
+  std::unique_ptr<Function> _fuel_specific_heat;
+  std::unique_ptr<Function> _fuel_temperature_co_efficient;
+  std::unique_ptr<Function> _moderator_temperature_co_efficient;
+  std::unique_ptr<Function> _boron_temperature_co_efficient;
 
-        /* calculate the over all states */
-        void updateCurrentState();
+  // temperatures
+  double _fuel_temperature;
+  double _moderator_temperature;
 
-        /* Method for broadcasting current state and data to other components*/
-        void broadCastState();
+  // delayed neutron fractions
+  const unsigned int _number_of_neutron_groups;
+  const std::vector<double> _delayed_neutron_constants;
+};
+} // namespace astara
 
-        /* Methods for setting functional expression */
-        void setHeatTransferCoefficient(Function* heat_transfer_co_eff_function);
-        void setFuelSpecificHeatFunction(Function* fuel_specific_function);
-        void setFuelTemperatureCoEfficientFunction(Function* fuel_temp_feed_back_func);
-        void setModeratorTemperatureCoEfficientFunction(Function* moderator_temp_feed_back_func);
-
-    private:
-
-        /**
-         * Most of the time heat transfer coefficient and fuel specific heat can be
-         * time and temperature depended. So making it a function with arbitrary number of inputs
-         * is a better idea
-         */
-        std::unique_ptr<Function> _convective_heat_transfer_co_efficient;
-        std::unique_ptr<Function> _fuel_specific_heat;
-        std::unique_ptr<Function> _fuel_temperature_co_efficient;
-        std::unique_ptr<Function> _moderator_temperature_co_efficient;
-        std::unique_ptr<Function> _boron_temperature_co_efficient;
-
-        // temperatures
-        double _fuel_temperature;
-        double _moderator_temperature;
-
-        // delayed neutron fractions
-        const unsigned int _number_of_neutron_groups;
-        const std::vector<double> _delayed_neutron_constants;
-
-    };
-}
-
-#endif //ASTARA_REACTOR_H
+#endif // ASTARA_REACTOR_H
