@@ -2,7 +2,7 @@
 #define ASTARA_REACTOR_H
 
 #include <vector>
-#include <unique_ptr>
+#include <memory>
 
 
 
@@ -13,16 +13,16 @@ namespace astara{
     class Reactor{
 
     public:
-        Reactor(int& n_groups, std::vector<double>& delayed_neutron_constants);
+        Reactor(unsigned int n_groups, std::vector<double> delayed_neutron_constants);
         ~Reactor()=default;
 
         /* initial condition setters*/
 
         void setInitialFuelTemperature(double fuel_temperature){
-            _fuel_temperature = fuel_temperature
+            _fuel_temperature = fuel_temperature;
         };
         void setInitialModeratorTemperature(double moderator_temperature){
-            _moderator_temperature = moderator_temperature
+            _moderator_temperature = moderator_temperature;
         };
 
 
@@ -75,8 +75,8 @@ namespace astara{
         double _moderator_temperature;
 
         // delayed neutron fractions
-        const unsigned int& _number_of_neutron_groups;
-        const std::vector<double>& _delayed_neutron_constants;
+        const unsigned int _number_of_neutron_groups;
+        const std::vector<double> _delayed_neutron_constants;
 
     };
 }
