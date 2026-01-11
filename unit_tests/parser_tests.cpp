@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include "cmath"
+
 #include "Parser.h"
 
 TEST(AstaraParser, ConstantExpression) {
@@ -81,9 +83,11 @@ TEST(AstaraParser,FunctionWithVariable) {
 
 
 TEST(AstaraParser, ComplexExpression) {
-    astara::Function f("sin(x) + y^2 - sqrt(4)", {"x", "y"});
-    double result = f(0.0, 3.0);
-    EXPECT_NEAR(result, 7.0, 1e-9);
+    astara::Function f("sin(x)/exp(-sin(x))+(y-x/cos(x))^2 - sqrt(x)", {"x", "y"});
+    double result = f(3.0, 10.0);
+    double x=3;
+    double y=10;
+    EXPECT_EQ(result, sin(x)/exp(-sin(x))+(y-x/cos(x))*(y-x/cos(x)) -sqrt(x));
 }
 
 

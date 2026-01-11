@@ -11,17 +11,6 @@
 namespace astara {
 
 
-    enum class Func {
-        Sin,
-        Cos,
-        Tan,
-        Log,
-        Sqrt,
-        Exp,
-        Abs
-    };
-
-
     class Function {
     public:
         Function(const std::string& expr, const std::vector<std::string>& variable_names);
