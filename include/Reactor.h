@@ -23,6 +23,14 @@ public:
     _moderator_temperature = moderator_temperature;
   };
 
+  /* Methods for setting functional expression */
+  void setHeatTransferCoefficient(Function *heat_transfer_co_eff_function);
+  void setFuelSpecificHeatFunction(Function *fuel_specific_function);
+  void
+  setFuelTemperatureCoEfficientFunction(Function *fuel_temp_feed_back_func);
+  void setModeratorTemperatureCoEfficientFunction(
+      Function *moderator_temp_feed_back_func);
+
 protected:
   // transients
   /** differential eq for transient reactivity calculation */
@@ -47,14 +55,6 @@ protected:
   /* Method for broadcasting current state and data to other components*/
   void broadCastState();
 
-  /* Methods for setting functional expression */
-  void setHeatTransferCoefficient(Function *heat_transfer_co_eff_function);
-  void setFuelSpecificHeatFunction(Function *fuel_specific_function);
-  void
-  setFuelTemperatureCoEfficientFunction(Function *fuel_temp_feed_back_func);
-  void setModeratorTemperatureCoEfficientFunction(
-      Function *moderator_temp_feed_back_func);
-
 private:
   /**
    * Most of the time heat transfer coefficient and fuel specific heat can be
@@ -74,6 +74,7 @@ private:
   // delayed neutron fractions
   const unsigned int _number_of_neutron_groups;
   const std::vector<double> _delayed_neutron_constants;
+  const double _sum_delayed_neutron_constants;
 };
 } // namespace astara
 
