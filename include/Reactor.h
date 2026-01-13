@@ -11,7 +11,10 @@ class Function;
 class Reactor {
 
 public:
-  Reactor(unsigned int n_groups, std::vector<double> delayed_neutron_constants);
+  Reactor(unsigned int n_groups,
+          std::vector<double> neutron_group_const,
+          std::vector<double> delayed_neutron_constants,
+          double neutron_generation_time);
   ~Reactor();
 
   /* initial condition setters*/
@@ -67,14 +70,26 @@ private:
   std::unique_ptr<Function> _moderator_temperature_co_efficient;
   std::unique_ptr<Function> _boron_temperature_co_efficient;
 
+  //neutron generation time
+  const double _neutron_generation_time;
+
+  //variables
+  /* There is an initial reactivity which can be calculated from the startup
+   * condition. Like how much boron in it, fuel moderator temperature, initial xenon presence
+   * fuel inventory presence etc */
+  double _reactivity = 0;
+
   // temperatures
   double _fuel_temperature;
   double _moderator_temperature;
 
   // delayed neutron fractions
   const unsigned int _number_of_neutron_groups;
-  const std::vector<double> _delayed_neutron_constants;
-  const double _sum_delayed_neutron_constants;
+  const std::vector<double> _neutron_group_const;
+  const std::vector<double> _decay_constants;
+  const double _total_decay_constant;
+  const double _total_group_const;
+
 };
 } // namespace astara
 

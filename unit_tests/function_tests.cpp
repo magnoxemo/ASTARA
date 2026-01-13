@@ -1,7 +1,7 @@
 #include "cmath"
 #include <gtest/gtest.h>
 
-#include "Parser.h"
+#include "Function.h"
 
 TEST(AstaraParser, ConstantExpression) {
   astara::Function f("2 + 3 * 4", {});
