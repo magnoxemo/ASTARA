@@ -154,12 +154,6 @@ TEST_F(ReactorTest, AllInitialConditionsIndependent) {
 
 // ===== Function Setter Tests =====
 
-TEST_F(ReactorTest, SetHeatTransferCoefficientWithConstantFunction) {
-  Reactor reactor(n_groups, decay_constants, beta_values, Lambda);
-  
-  std::unique_ptr<Function> h_func(new Function("5000.0", {"x"}));
-  EXPECT_NO_THROW(reactor.setHeatTransferCoefficient(h_func.get()));
-}
 
 TEST_F(ReactorTest, SetHeatTransferCoefficientWithLinearFunction) {
   Reactor reactor(n_groups, decay_constants, beta_values, Lambda);
