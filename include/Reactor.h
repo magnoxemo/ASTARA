@@ -22,6 +22,11 @@ struct ReactorState {
   std::vector<double> precursor_concentrations; // Delayed neutron precursors
 };
 
+
+  //operator overloading
+  ReactorState operator+(const ReactorState &a, const ReactorState &b);
+  ReactorState operator*(const ReactorState &a, double scalar);
+
 class Reactor {
 public:
   // Constructor
@@ -44,8 +49,8 @@ public:
   void timeStep(double dt);
 
   // State getters
-  ReactorState stateSnapshot() const;
-  void restoreState(const ReactorState &snapshot);
+  ReactorState stateSnapshot() const { return _state; }
+  void restoreState(const ReactorState &snapshot) { _state = snapshot; }
 
   // Individual state getters
   double getPower() const { return _state.power; }
@@ -67,9 +72,9 @@ public:
   double getHeatTransferArea() const { return _heat_transfer_area; }
   double getFissionEnergy() const { return _fission_energy; }
   double getControlRodEffectiveness() const {
-    return _control_rod_effectiveness;
+    return _control_rod_worth;
   }
-  double getBoronEffectiveness() const { return _boron_effectiveness; }
+  double getBoronEffectiveness() const { return _boron_worth; }
 
   // Initial condition setters
   void setInitialPower(double power) { _state.power = power; }
@@ -103,10 +108,10 @@ public:
 
   // Control effectiveness setters
   void setControlRodEffectiveness(double effectiveness) {
-    _control_rod_effectiveness = effectiveness;
+    _control_rod_worth = effectiveness;
   }
   void setBoronEffectiveness(double effectiveness) {
-    _boron_effectiveness = effectiveness;
+    _boron_worth = effectiveness;
   }
 
   // Function pointer setters - taking raw pointers (for test compatibility)
@@ -178,8 +183,8 @@ private:
   double _fission_energy = 3.2e-11;         // [J/fission]
 
   // Control parameters
-  double _control_rod_effectiveness = 0.0; // [delta-k/k per meter]
-  double _boron_effectiveness = 0.0;       // [delta-k/k per ppm]
+  double _control_rod_worth = 0.0; // [delta-k/k per meter]
+  double _boron_worth = 0.0;       // [delta-k/k per ppm]
 
   // Function pointers for temperature-dependent properties
   std::unique_ptr<Function> _convective_heat_transfer_coefficient;
@@ -246,34 +251,6 @@ private:
   void integrateRK4(double dt);
 };
 
-    ReactorState operator+(const ReactorState &a, const ReactorState &b) {
-        ReactorState r = a;
-
-        r.reactivity += b.reactivity;
-        r.power += b.power;
-        r.fuel_temperature += b.fuel_temperature;
-        r.moderator_temperature += b.moderator_temperature;
-
-        for (size_t i = 0; i < r.precursor_concentrations.size(); ++i) {
-            r.precursor_concentrations[i] += b.precursor_concentrations[i];
-        }
-        return r;
-    }
-
-    ReactorState operator*(const ReactorState &a, double scalar) {
-        ReactorState r;
-
-        r.reactivity = a.reactivity * scalar;
-        r.power = a.power * scalar;
-        r.fuel_temperature = a.fuel_temperature * scalar;
-        r.moderator_temperature = a.moderator_temperature * scalar;
-
-        r.precursor_concentrations.resize(a.precursor_concentrations.size());
-        for (size_t i = 0; i < a.precursor_concentrations.size(); ++i) {
-            r.precursor_concentrations[i] = a.precursor_concentrations[i] * scalar;
-        }
-        return r;
-    }
 } // namespace astara
 
 #endif // REACTOR_H

@@ -21,7 +21,6 @@ Reactor::Reactor(unsigned int n_groups,
                           delayed_neutron_constants.end(), 0.0)),
       _prompt_neutron_fraction(1.0 - _total_delayed_neutron_fraction) {
 
-  // Validate input consistency
   if (neutron_group_const.size() != n_groups) {
     throw std::runtime_error(
         "Number of decay constants does not match number of groups");
@@ -36,13 +35,9 @@ Reactor::Reactor(unsigned int n_groups,
     throw std::runtime_error("Neutron generation time must be positive");
   }
 
-  if (_total_delayed_neutron_fraction < 0.0 ||
-      _total_delayed_neutron_fraction >= 1.0) {
-    throw std::runtime_error(
-        "Total delayed neutron fraction must be in [0, 1)");
+  if (_total_delayed_neutron_fraction < 0.0 || _total_delayed_neutron_fraction >= 1.0) {
+    throw std::runtime_error( "Total delayed neutron fraction must be in [0, 1)");
   }
-
-  // Initialize precursor concentrations
   _state.precursor_concentrations.resize(n_groups, 0.0);
 }
 
@@ -55,7 +50,7 @@ void Reactor::timeStep(double dt) {
 }
 
 double Reactor::calculateDRhoDt() const {
-  // Reactivity feedback from fuel temperature
+
   double fuel_feedback = 0.0;
   if (_fuel_temperature_coefficient) {
     try {
@@ -68,12 +63,10 @@ double Reactor::calculateDRhoDt() const {
     }
   }
 
-  // Reactivity feedback from moderator temperature
   double moderator_feedback = 0.0;
   if (_moderator_temperature_coefficient) {
     try {
-      moderator_feedback =
-          (*_moderator_temperature_coefficient)(_state.moderator_temperature);
+      moderator_feedback =  (*_moderator_temperature_coefficient)(_state.moderator_temperature);
       if (std::isnan(moderator_feedback) || std::isinf(moderator_feedback)) {
         moderator_feedback = 0.0;
       }
@@ -82,65 +75,47 @@ double Reactor::calculateDRhoDt() const {
     }
   }
 
-  // Return rate of change of reactivity (dρ/dt)
   return fuel_feedback + moderator_feedback;
 }
 
 double Reactor::calculateDPowerDt() const {
-  // Point kinetics equation for power
-  // dP/dt = [(rho - beta) / Lambda] * P + sum(lambda_i * C_i)
 
   if (_state.power < 1e-12) {
     return 0.0;
   }
 
-  const double rho_minus_beta =
-      _state.reactivity - _total_delayed_neutron_fraction;
+  const double rho_minus_beta = _state.reactivity - _total_delayed_neutron_fraction;
   const double inv_generation_time = 1.0 / _neutron_generation_time;
 
-  // Prompt neutron contribution
   double dp_dt = (rho_minus_beta * inv_generation_time) * _state.power;
-
-  // Delayed neutron contribution from precursors
   for (unsigned int i = 0; i < _number_of_neutron_groups; ++i) {
-    dp_dt +=
-        _neutron_group_decay_constants[i] * _state.precursor_concentrations[i];
+    dp_dt += _neutron_group_decay_constants[i] * _state.precursor_concentrations[i];
   }
 
   return dp_dt;
+
 }
 
 double Reactor::calculateDFuelTempDt() const {
-  // Energy balance for fuel: dT_f/dt = (Power - Heat_transfer) / (m_f * c_f)
 
   if (_state.power < 1e-12 || _fuel_mass <= 0.0 ||
       _thermal_capacity_fuel <= 0.0) {
     return 0.0;
   }
 
-  // Fission heat generation (MW to W)
   const double fission_power_watts = _state.power * 1e6;
+  double h;
 
-  // Heat transfer coefficient
-  double h = 5000.0; // Default value
   if (_convective_heat_transfer_coefficient) {
-    try {
-      h = (*_convective_heat_transfer_coefficient)(_state.fuel_temperature);
-      if (std::isnan(h) || std::isinf(h) || h < 0.0) {
-        h = 5000.0;
-      }
-    } catch (const std::exception &e) {
-      h = 5000.0;
-    }
+    h = (*_convective_heat_transfer_coefficient)(_state.fuel_temperature);
+    if (h < 0)
+      std::runtime_error("Heat transfer co-efficient can't be negative");
+
   }
 
-  // Heat transfer to moderator
-  const double temperature_difference =
-      _state.fuel_temperature - _state.moderator_temperature;
-  const double heat_transferred =
-      h * _heat_transfer_area * temperature_difference;
+  const double temperature_difference = _state.fuel_temperature - _state.moderator_temperature;
+  const double heat_transferred = h * _heat_transfer_area * temperature_difference;
 
-  // Fuel specific heat capacity
   double c_f = _thermal_capacity_fuel;
   if (_fuel_specific_heat) {
     try {
@@ -153,9 +128,9 @@ double Reactor::calculateDFuelTempDt() const {
     }
   }
 
-  // Temperature rate of change
-  double dt_f_dt =
-      (fission_power_watts - heat_transferred) / (_fuel_mass * c_f);
+  // this is wrong. I need to go back and reimplement this
+
+  double dt_f_dt =  (fission_power_watts - heat_transferred) / (_fuel_mass * c_f);
 
   return dt_f_dt;
 }
@@ -214,9 +189,7 @@ double Reactor::calculateDCDt(unsigned int group_index) const {
   return dc_dt;
 }
 
-ReactorState Reactor::stateSnapshot() const { return _state; }
 
-void Reactor::restoreState(const ReactorState &snapshot) { _state = snapshot; }
 
 void Reactor::integrateRK4(double dt) {
   ReactorState y0 = _state;
@@ -236,7 +209,7 @@ void Reactor::insertControlRod(double length) {
     throw std::runtime_error("Control rod length cannot be negative");
   }
 
-  double reactivity_change = _control_rod_effectiveness * length;
+  double reactivity_change = _control_rod_worth * length;
   _state.reactivity += reactivity_change;
 }
 
@@ -245,7 +218,7 @@ void Reactor::injectBoron(double boron_concentration) {
     throw std::runtime_error("Boron concentration cannot be negative");
   }
 
-  double reactivity_change = _boron_effectiveness * boron_concentration;
+  double reactivity_change = _boron_worth * boron_concentration;
   _state.reactivity += reactivity_change;
 }
 
@@ -254,6 +227,34 @@ Function *Reactor::createConstantFunction(double value) {
   // Create a function that returns a constant value
   // This assumes Function can be constructed with a string expression
   return new Function(std::to_string(value), std::vector<std::string>{});
+}
+
+ReactorState operator*(const ReactorState &a, double scalar) {
+  ReactorState r;
+
+  r.reactivity = a.reactivity * scalar;
+  r.power = a.power * scalar;
+  r.fuel_temperature = a.fuel_temperature * scalar;
+  r.moderator_temperature = a.moderator_temperature * scalar;
+
+  r.precursor_concentrations.resize(a.precursor_concentrations.size());
+  for (size_t i = 0; i < a.precursor_concentrations.size(); ++i) {
+    r.precursor_concentrations[i] = a.precursor_concentrations[i] * scalar;
+  }
+  return r;
+}
+ReactorState operator+(const ReactorState &a, const ReactorState &b) {
+  ReactorState r = a;
+
+  r.reactivity += b.reactivity;
+  r.power += b.power;
+  r.fuel_temperature += b.fuel_temperature;
+  r.moderator_temperature += b.moderator_temperature;
+
+  for (size_t i = 0; i < r.precursor_concentrations.size(); ++i) {
+    r.precursor_concentrations[i] += b.precursor_concentrations[i];
+  }
+  return r;
 }
 
 } // namespace astara
