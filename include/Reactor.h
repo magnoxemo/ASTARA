@@ -203,49 +203,9 @@ private:
   double calculateDModeratorTempDt() const;
   double calculateDCDt(unsigned int group_index) const;
 
-  ReactorState evaluateDerivatives(const ReactorState &s) {
-    ReactorState saved = _state;
-    _state = s;
+  ReactorState evaluateDerivatives(const ReactorState &s);
 
-    ReactorState k;
-    k.reactivity = calculateDRhoDt();
-    k.power = calculateDPowerDt();
-    k.fuel_temperature = calculateDFuelTempDt();
-    k.moderator_temperature = calculateDModeratorTempDt();
-
-    k.precursor_concentrations.resize(_number_of_neutron_groups);
-    for (unsigned int i = 0; i < _number_of_neutron_groups; ++i) {
-      k.precursor_concentrations[i] = calculateDCDt(i);
-    }
-
-    _state = saved;
-    return k;
-  }
-
-  void clampState() {
-    // Power cannot be negative
-    if (_state.power < 0.0) {
-      _state.power = 0.0;
-    }
-
-    // Temperatures cannot be below absolute zero (Celsius scale)
-    const double absolute_zero_c = -273.15;
-
-    if (_state.fuel_temperature < absolute_zero_c) {
-      _state.fuel_temperature = absolute_zero_c;
-    }
-
-    if (_state.moderator_temperature < absolute_zero_c) {
-      _state.moderator_temperature = absolute_zero_c;
-    }
-
-    // Precursor concentrations must remain non-negative
-    for (unsigned int i = 0; i < _number_of_neutron_groups; ++i) {
-      if (_state.precursor_concentrations[i] < 0.0) {
-        _state.precursor_concentrations[i] = 0.0;
-      }
-    }
-  }
+  void clampState();
 
   // Integration methods
   void integrateRK4(double dt);

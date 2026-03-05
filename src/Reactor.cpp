@@ -16,35 +16,31 @@ Reactor::Reactor(unsigned int n_groups,
       _neutron_group_decay_constants(neutron_group_const),
       _delayed_neutron_fractions(delayed_neutron_constants),
       _neutron_generation_time(neutron_generation_time),
-      _total_delayed_neutron_fraction(
-          std::accumulate(delayed_neutron_constants.begin(),
-                          delayed_neutron_constants.end(), 0.0)),
+      _total_delayed_neutron_fraction(std::accumulate(delayed_neutron_constants.begin(), delayed_neutron_constants.end(), 0.0)),
       _prompt_neutron_fraction(1.0 - _total_delayed_neutron_fraction) {
 
-  if (neutron_group_const.size() != n_groups) {
-    throw std::runtime_error(
-        "Number of decay constants does not match number of groups");
-  }
+  if (neutron_group_const.size() != n_groups)
+    throw std::runtime_error( "Number of decay constants does not match number of groups");
 
-  if (delayed_neutron_constants.size() != n_groups) {
-    throw std::runtime_error(
-        "Number of delayed neutron fractions does not match number of groups");
-  }
 
-  if (neutron_generation_time <= 0.0) {
+  if (delayed_neutron_constants.size() != n_groups)
+    throw std::runtime_error( "Number of delayed neutron fractions does not match number of groups");
+
+
+  if (neutron_generation_time <= 0.0)
     throw std::runtime_error("Neutron generation time must be positive");
-  }
 
-  if (_total_delayed_neutron_fraction < 0.0 || _total_delayed_neutron_fraction >= 1.0) {
+  if (_total_delayed_neutron_fraction < 0.0 || _total_delayed_neutron_fraction >= 1.0)
     throw std::runtime_error( "Total delayed neutron fraction must be in [0, 1)");
-  }
+
+
   _state.precursor_concentrations.resize(n_groups, 0.0);
 }
 
 void Reactor::timeStep(double dt) {
-  if (dt <= 0.0) {
+  if (dt <= 0.0)
     throw std::runtime_error("Time step must be positive");
-  }
+
   integrateRK4(dt);
   _state.time += dt;
 }
@@ -136,7 +132,7 @@ double Reactor::calculateDFuelTempDt() const {
 }
 
 double Reactor::calculateDModeratorTempDt() const {
-  // Energy balance for moderator: dT_m/dt = Heat_transfer / (m_m * c_m)
+
 
   if (_moderator_mass <= 0.0 || _thermal_capacity_moderator <= 0.0) {
     return 0.0;
@@ -156,14 +152,11 @@ double Reactor::calculateDModeratorTempDt() const {
   }
 
   // Heat received from fuel
-  const double temperature_difference =
-      _state.fuel_temperature - _state.moderator_temperature;
-  const double heat_transferred =
-      h * _heat_transfer_area * temperature_difference;
+  const double temperature_difference = _state.fuel_temperature - _state.moderator_temperature;
+  const double heat_transferred = h * _heat_transfer_area * temperature_difference;
 
   // Moderator temperature rate of change
-  double dt_m_dt =
-      heat_transferred / (_moderator_mass * _thermal_capacity_moderator);
+  double dt_m_dt = heat_transferred / (_moderator_mass * _thermal_capacity_moderator);
 
   return dt_m_dt;
 }
@@ -229,6 +222,51 @@ Function *Reactor::createConstantFunction(double value) {
   return new Function(std::to_string(value), std::vector<std::string>{});
 }
 
+
+ReactorState Reactor::evaluateDerivatives(const ReactorState &s) {
+    ReactorState saved = _state;
+    _state = s;
+
+    ReactorState k;
+    k.reactivity = calculateDRhoDt();
+    k.power = calculateDPowerDt();
+    k.fuel_temperature = calculateDFuelTempDt();
+    k.moderator_temperature = calculateDModeratorTempDt();
+
+    k.precursor_concentrations.resize(_number_of_neutron_groups);
+    for (unsigned int i = 0; i < _number_of_neutron_groups; ++i) {
+        k.precursor_concentrations[i] = calculateDCDt(i);
+    }
+
+    _state = saved;
+    return k;
+}
+
+
+void Reactor::clampState() {
+        // Power cannot be negative
+    if (_state.power < 0.0) {
+        _state.power = 0.0;
+    }
+
+    constexpr double absolute_zero_c = -273.15;
+
+    if (_state.fuel_temperature < absolute_zero_c) {
+        _state.fuel_temperature = absolute_zero_c;
+    }
+
+    if (_state.moderator_temperature < absolute_zero_c) {
+        _state.moderator_temperature = absolute_zero_c;
+    }
+
+    // Precursor concentrations must remain non-negative
+    for (unsigned int i = 0; i < _number_of_neutron_groups; ++i) {
+        if (_state.precursor_concentrations[i] < 0.0) {
+            _state.precursor_concentrations[i] = 0.0;
+        }
+    }
+}
+
 ReactorState operator*(const ReactorState &a, double scalar) {
   ReactorState r;
 
@@ -243,6 +281,8 @@ ReactorState operator*(const ReactorState &a, double scalar) {
   }
   return r;
 }
+
+
 ReactorState operator+(const ReactorState &a, const ReactorState &b) {
   ReactorState r = a;
 
@@ -256,5 +296,7 @@ ReactorState operator+(const ReactorState &a, const ReactorState &b) {
   }
   return r;
 }
+
+
 
 } // namespace astara
