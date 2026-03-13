@@ -34,3 +34,4 @@ jobs:
           cd build/unit_tests
           ./function_tests
           ./reactor_tests
+          ./parser_tests
