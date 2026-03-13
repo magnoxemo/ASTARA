@@ -62,7 +62,7 @@ int main() {
   Function *alpha_f_func = new Function("-0.00001 * (x - 565)", {"x"});
   reactor.setFuelTemperatureCoEfficientFunction(alpha_f_func);
 
-  Function *alpha_m_func = new Function("-0.00005 * (x - 300)", {"x"});
+  Function *alpha_m_func = new Function("-0.000005 * (x - 300)", {"x"});
   reactor.setModeratorTemperatureCoEfficientFunction(alpha_m_func);
 
   Function *alpha_boron_func = new Function("-0.005 * (x - 300)", {"x"});
@@ -100,13 +100,11 @@ int main() {
     if (!rod_withdrawn && current_time >= withdraw_time) {
         reactor.setInitialReactivity(0);
         rod_withdrawn = true;
+        reactor.setCoolantInletTemperature(400);
         // std::cout << "--- Rod withdrawn at t = " << current_time << " s ---" << std::endl;
     }
 
-    if (!boron_injected and current_time>=boron_inject_time) {
-      reactor.injectBoron(100);
-      boron_injected = true;
-    }
+
 
     reactor.timeStep(dt);
 
