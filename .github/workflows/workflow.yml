@@ -35,3 +35,8 @@ jobs:
           ./function_tests
           ./reactor_tests
 
+      - name: Run examples
+        shell: bash
+        run: |
+          cd build/examples
+          ./reactor_example
