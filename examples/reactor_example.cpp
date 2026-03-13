@@ -1,4 +1,3 @@
-// main.cpp
 #include "Function.h"
 #include "Reactor.h"
 #include <cmath>
