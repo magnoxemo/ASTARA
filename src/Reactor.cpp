@@ -1,4 +1,3 @@
-// Reactor.cpp
 #include "Reactor.h"
 #include "Function.h"
 #include <algorithm>
