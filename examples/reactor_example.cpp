@@ -3,121 +3,159 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 
 using namespace astara;
 
 int main() {
+    unsigned int n_groups = 6;
 
-  unsigned int n_groups = 6;
+    std::vector<double> decay_constants = {0.0125, 0.0308, 0.114,
+                                           0.307,  1.19,   3.19};
+    std::vector<double> beta_values = {0.000209, 0.001414, 0.001309,
+                                       0.002727, 0.000925, 0.000314};
 
-  std::vector<double> decay_constants = {0.0127, 0.0317, 0.115,
-                                         0.311,  1.40,   3.87};
-  std::vector<double> beta_values = {0.000215, 0.001424, 0.001274,
-                                     0.002568, 0.000748, 0.000273};
+    double total_beta = 0.0;
+    for (double beta : beta_values) {
+        total_beta += beta;
+    }
 
-  double total_beta = 0.0;
-  for (double beta : beta_values) {
-    total_beta += beta;
-  }
+    std::cout << "Total delayed neutron fraction: " << total_beta << std::endl;
 
-  std::cout << "Total delayed neutron fraction: " << total_beta << std::endl;
+    double Lambda = 1.79e-5;
 
-  double Lambda = 5e-5;
+    Reactor reactor(n_groups, decay_constants, beta_values, Lambda);
 
-  Reactor reactor(n_groups, decay_constants, beta_values, Lambda);
+    reactor.setInitialPower(1.0);
+    reactor.setInitialReactivity(0.0);
+    reactor.setInitialFuelTemperature(565.0);
+    reactor.setInitialModeratorTemperature(300.0);
+    reactor.setInitialUpperPlenumTemperature(325.0);
+    reactor.setInitialLowerPlenumTemperature(300.0);
+    reactor.setInitialHotLegTemperature(325.0);
+    reactor.setInitialColdLegTemperature(300.0);
+    reactor.setFuelMass(222739.0 * 0.453592);
+    reactor.setModeratorMass(50000.0);
+    reactor.setFuelThermalCapacity(0.059 * 4186.8);
+    reactor.setModeratorThermalCapacity(1.39 * 4186.8);
+    reactor.setHeatTransferArea(59900.0 * 0.092903);
+    reactor.setFissionEnergy(3.2e-11);
+    reactor.setRatedPower(3436.0);
+    reactor.setCoolantFlowRate(1.5e8 * 0.000125998);
+    reactor.setCoolantInletTemperature(296.96);
+    reactor.setUpperPlenumMass(38.96 * 700.0);
+    reactor.setLowerPlenumMass(50.72 * 700.0);
+    reactor.setHotLegMass(28.32 * 700.0);
+    reactor.setColdLegMass(56.63 * 700.0);
+    reactor.setFractionPowerInFuel(0.974);
+    reactor.setControlRodEffectiveness(-0.001);
+    reactor.setBoronEffectiveness(-1.0e-5);
 
-  reactor.setInitialPower(1.0);
-  reactor.setInitialReactivity(0.0);
-  reactor.setInitialFuelTemperature(565.0);
-  reactor.setInitialModeratorTemperature(300.0);
 
-  for (unsigned int i = 0; i < n_groups; ++i) {
-    double C_i =
-            (beta_values[i] * reactor.getPower()) / (decay_constants[i] * Lambda);
-    reactor.setInitialPrecursorConcentration(i, C_i);
-    std::cout << "Precursor " << i << " initial concentration: " << C_i
-              << std::endl;
-  }
+    // Set temperature-dependent functions
+    Function *h_func = new Function("5000 + 10 * (x - 300)", {"x"});
+    Function *alpha_m_func = new Function("-3.6e-4 * (x - 300)", {"x"});
+    Function *alpha_f_func = new Function("-1.98e-5 * (x - 600)", {"x"});
+    Function *c_f_func = new Function("5000 + 0.2 * (x - 300)", {"x"});
 
-  reactor.setFuelMass(2000.0);
-  reactor.setModeratorMass(50000.0);
-  reactor.setFuelThermalCapacity(500.0);
-  reactor.setModeratorThermalCapacity(4186.0);
-  reactor.setHeatTransferArea(500.0);
-  reactor.setFissionEnergy(3.2e-11);
-  reactor.setRatedPower(100.0);
-  reactor.setCoolantFlowRate(17700.0);
-  reactor.setCoolantInletTemperature(296.96);
+    reactor.setHeatTransferCoefficient(h_func);
+    reactor.setFuelSpecificHeatFunction(c_f_func);
+    reactor.setFuelTemperatureCoEfficientFunction(alpha_f_func);
+    reactor.setModeratorTemperatureCoEfficientFunction(alpha_m_func);
 
-  reactor.setControlRodEffectiveness(-0.0001);
-  reactor.setBoronEffectiveness(-1.0e-5);
+    for (unsigned int i = 0; i < n_groups; ++i) {
+        double C_i = (beta_values[i] * reactor.getPower()) / (decay_constants[i] * Lambda);
+        reactor.setInitialPrecursorConcentration(i, C_i);
+    }
 
-  Function *h_func = new Function("5000 + 10 * (x - 300)", {"x"});
-  reactor.setHeatTransferCoefficient(h_func);
 
-  Function *c_f_func = new Function("500 + 0.2 * (x - 300)", {"x"});
-  reactor.setFuelSpecificHeatFunction(c_f_func);
+    // Open CSV file for writing
+    std::ofstream csv_file("reactor_transient.csv");
+    if (!csv_file.is_open()) {
+        std::cerr << "Error: Could not open CSV file for writing" << std::endl;
+        return 1;
+    }
 
-  Function *alpha_f_func = new Function("-0.00001 * (x - 565)", {"x"});
-  reactor.setFuelTemperatureCoEfficientFunction(alpha_f_func);
+    reactor.writeCSVHeader(csv_file);
 
-  Function *alpha_m_func = new Function("-0.000005 * (x - 300)", {"x"});
-  reactor.setModeratorTemperatureCoEfficientFunction(alpha_m_func);
+    std::cout << std::fixed << std::setprecision(6);
+    std::cout << "\nReactor Transient Analysis\n";
+    std::cout << std::string(120, '=') << std::endl;
+    std::cout << std::setw(12) << "Time (s)"
+              << std::setw(14) << "Power (MW)"
+              << std::setw(14) << "Rho (pcm)"
+              << std::setw(14) << "T_fuel (C)"
+              << std::setw(14) << "T_mod (C)"
+              << std::setw(14) << "T_up (C)"
+              << std::setw(14) << "T_lp (C)"
+              << std::setw(14) << "T_hot (C)"
+              << std::setw(14) << "T_cold (C)" << std::endl;
+    std::cout << std::string(120, '=') << std::endl;
 
-  Function *alpha_boron_func = new Function("-0.005 * (x - 300)", {"x"});
-  reactor.setBoronTemperatureCoEfficientFunction(alpha_boron_func);
 
-  std::cout << std::fixed << std::setprecision(6);
-  std::cout << "\nReactor Transient Analysis\n";
-  std::cout << std::setw(25) << "Time (s)" << std::setw(14) << "Power (MW)"
-            << std::setw(14) << "Rho (pcm)" << std::setw(14) << "T_fuel (C)"
-            << std::setw(14) << "T_mod (C)" << std::endl;
+    reactor.recordState(csv_file);
 
-  reactor.print_states();
+    auto print_state=[&reactor] (double time){
+            std::cout << std::setw(12) << std::fixed << std::setprecision(2) << time
+          << std::setw(14) << std::setprecision(2)
+          << reactor.getPower() * reactor.getRatedPower()
+          << std::setw(14) << std::setprecision(2) << reactor.getReactivity() * 1e5
+          << std::setw(14) << std::setprecision(2) << reactor.getFuelTemperature()
+          << std::setw(14) << std::setprecision(2) << reactor.getModeratorTemperature()
+          << std::setw(14) << std::setprecision(2) << reactor.getUpperPlenumTemperature()
+          << std::setw(14) << std::setprecision(2) << reactor.getLowerPlenumTemperature()
+          << std::setw(14) << std::setprecision(2) << reactor.getHotLegTemperature()
+          << std::setw(14) << std::setprecision(2) << reactor.getColdLegTemperature()
+          << std::endl;
+    };
 
     double dt = 0.01;
-    double t_end = 10000.0;
+    double t_end = 1000.0;
     int steps = static_cast<int>(t_end / dt);
+    int output_freq = 100;
+    int csv_freq = 10;
 
-    double insert_time = 5000.0;
-    double withdraw_time = 7000.0;  // time when rod is removed
-    double boron_inject_time = 8000.0;
+    double insert_time = 200.0;
+    double withdraw_time = 400.0;
 
     bool rod_inserted = false;
     bool rod_withdrawn = false;
-    bool boron_injected = false;
+
+    print_state(0);
 
     for (int i = 1; i <= steps; ++i) {
-    double current_time = i * dt;
+        double current_time = i * dt;
 
-    if (!rod_inserted && current_time >= insert_time) {
-        reactor.insertControlRod(1.0);
-        rod_inserted = true;
-        // std::cout << "--- Rod inserted at t = " << current_time << " s ---" << std::endl;
+        if (!rod_inserted && current_time >= insert_time) {
+            reactor.setCoolantInletTemperature(340);
+            reactor.setHeatTransferArea(59900);
+            rod_inserted = true;
+            std::cout << "\n--- Rod inserted at t = " << current_time << " s ---\n" << std::endl;
+        }
+
+        if (!rod_withdrawn && current_time >= withdraw_time) {
+            reactor.setCoolantInletTemperature(3000);
+            reactor.setHeatTransferArea(200);
+            reactor.setInitialReactivity(0.00001);
+            rod_withdrawn = false;
+        }
+
+        reactor.timeStep(dt);
+
+        if (i % csv_freq == 0) {
+            reactor.recordState(csv_file);
+        }
+
+        if (i % output_freq == 0)
+            print_state(current_time);
     }
 
-    if (!rod_withdrawn && current_time >= withdraw_time) {
-        reactor.setInitialReactivity(0);
-        rod_withdrawn = true;
-        reactor.setCoolantInletTemperature(400);
-        // std::cout << "--- Rod withdrawn at t = " << current_time << " s ---" << std::endl;
-    }
+    csv_file.close();
 
+    std::cout << "\n" << std::string(120, '=') << std::endl;
+    std::cout << "Simulation Complete\n";
+    std::cout << "Data saved to reactor_transient.csv\n";
+    std::cout << std::string(120, '=') << std::endl;
 
-
-    reactor.timeStep(dt);
-
-    if (i % 10000 == 0) {
-        reactor.print_states();
-    }
-    }
-
-  std::cout << "\n\nSimulation Complete\n";
-  std::cout << "Final State:\n";
-  std::cout << "  Power: " << reactor.getPower() << " MW\n";
-  std::cout << "  Fuel Temperature: " << reactor.getFuelTemperature() << " C\n";
-  std::cout << "  Moderator Temperature: " << reactor.getModeratorTemperature() << " C\n";
-  std::cout << "  Reactivity: " << reactor.getReactivity() * 1e5 << " pcm\n";
-
-  return 0;
+    return 0;
 }

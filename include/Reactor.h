@@ -1,12 +1,10 @@
-// Reactor.h
-#ifndef REACTOR_H
-#define REACTOR_H
+#ifndef ASTARA_REACTOR_H
+#define ASTARA_REACTOR_H
 
-#include <functional>
+#include <vector>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <memory>
-#include <vector>
 
 namespace astara {
 
@@ -14,10 +12,18 @@ namespace astara {
 
     struct ReactorState {
         double time = 0.0;
-        double power = 0.0;
         double reactivity = 0.0;
+        double power = 0.0;
         double fuel_temperature = 0.0;
         double moderator_temperature = 0.0;
+
+        double upper_plenum_temperature = 0.0;
+        double lower_plenum_temperature = 0.0;
+        double hot_leg_temperature = 0.0;
+        double cold_leg_temperature = 0.0;
+
+        std::vector<double> fuel_temperatures;      // 3 nodes
+        std::vector<double> coolant_temperatures;   // 6 nodes
         std::vector<double> precursor_concentrations;
     };
 
@@ -26,10 +32,10 @@ namespace astara {
 
     class Reactor {
     public:
-        Reactor(unsigned int n_groups, const std::vector<double> &neutron_group_const,
+        Reactor(unsigned int n_groups,
+                const std::vector<double> &neutron_group_const,
                 const std::vector<double> &delayed_neutron_constants,
                 double neutron_generation_time);
-
         ~Reactor() = default;
 
         Reactor(const Reactor &) = delete;
@@ -40,119 +46,90 @@ namespace astara {
 
         void timeStep(double dt);
 
-        ReactorState stateSnapshot() const { return _state; }
-        void restoreState(const ReactorState &snapshot) { _state = snapshot; }
+        const ReactorState &getState() const { return _state; }
+        ReactorState &getMutableState() { return _state; }
 
         double getPower() const { return _state.power; }
         double getReactivity() const { return _state.reactivity; }
         double getFuelTemperature() const { return _state.fuel_temperature; }
-        double getModeratorTemperature() const {
-            return _state.moderator_temperature;
-        }
-        const ReactorState &getState() const { return _state; }
-        ReactorState &getMutableState() { return _state; }
+        double getModeratorTemperature() const { return _state.moderator_temperature; }
 
-        double getFuelMass() const { return _fuel_mass; }
-        double getModeratorMass() const { return _moderator_mass; }
-        double getFuelThermalCapacity() const { return _thermal_capacity_fuel; }
-        double getModeratorThermalCapacity() const {
-            return _thermal_capacity_moderator;
-        }
-        double getHeatTransferArea() const { return _heat_transfer_area; }
-        double getFissionEnergy() const { return _fission_energy; }
-        double getControlRodEffectiveness() const { return _control_rod_worth; }
-        double getBoronEffectiveness() const { return _boron_worth; }
-        double getRatedPower() const { return _rated_thermal_power_MW; }
-        double getCoolantFlowRate() const { return _coolant_mass_flow_rate; }
-        double getCoolantInletTemperature() const { return _coolant_inlet_temperature; }
+        // New getters
+        double getRatedPower()const {return _state.power;}
+        double getUpperPlenumTemperature() const { return _state.upper_plenum_temperature; }
+        double getLowerPlenumTemperature() const { return _state.lower_plenum_temperature; }
+        double getHotLegTemperature() const { return _state.hot_leg_temperature; }
+        double getColdLegTemperature() const { return _state.cold_leg_temperature; }
+        const std::vector<double>& getFuelTemperatures() const { return _state.fuel_temperatures; }
+        const std::vector<double>& getCoolantTemperatures() const { return _state.coolant_temperatures; }
 
         void setInitialPower(double power) { _state.power = power; }
-        void setInitialReactivity(double reactivity) {
-            _state.reactivity = reactivity;
-        }
+        void setInitialReactivity(double reactivity) { _state.reactivity = reactivity; }
         void setInitialFuelTemperature(double temp) {
             _state.fuel_temperature = temp;
+            // Initialize all fuel nodes to same temperature
+            for (double& t : _state.fuel_temperatures) {
+                t = temp;
+            }
         }
         void setInitialModeratorTemperature(double temp) {
             _state.moderator_temperature = temp;
+            // Initialize all coolant nodes to same temperature
+            for (double& t : _state.coolant_temperatures) {
+                t = temp;
+            }
+            _state.upper_plenum_temperature = temp;
+            _state.lower_plenum_temperature = temp;
+            _state.hot_leg_temperature = temp;
+            _state.cold_leg_temperature = temp;
         }
-        void setInitialPrecursorConcentration(unsigned int group,
-                                              double concentration) {
-            if (group < _number_of_neutron_groups) {
-                _state.precursor_concentrations[group] = concentration;
+
+        void setInitialUpperPlenumTemperature(double temp) { _state.upper_plenum_temperature = temp; }
+        void setInitialLowerPlenumTemperature(double temp) { _state.lower_plenum_temperature = temp; }
+        void setInitialHotLegTemperature(double temp) { _state.hot_leg_temperature = temp; }
+        void setInitialColdLegTemperature(double temp) { _state.cold_leg_temperature = temp; }
+
+        void setInitialPrecursorConcentration(unsigned int group, double value) {
+            if (group < _state.precursor_concentrations.size()) {
+                _state.precursor_concentrations[group] = value;
             }
         }
 
-        void setFuelMass(double mass) { _fuel_mass = mass; }
-        void setModeratorMass(double mass) { _moderator_mass = mass; }
-        void setFuelThermalCapacity(double capacity) {
-            _thermal_capacity_fuel = capacity;
-        }
-        void setModeratorThermalCapacity(double capacity) {
-            _thermal_capacity_moderator = capacity;
-        }
-        void setHeatTransferArea(double area) { _heat_transfer_area = area; }
+        void setFuelMass(double mass);
+        void setModeratorMass(double mass);
+        void setFuelThermalCapacity(double cp) { _thermal_capacity_fuel = cp; }
+        void setModeratorThermalCapacity(double cp) { _thermal_capacity_moderator = cp; }
+        void setHeatTransferArea(double area);
         void setFissionEnergy(double energy) { _fission_energy = energy; }
-        void setRatedPower(double power_MW) { _rated_thermal_power_MW = power_MW; }
-        void setCoolantFlowRate(double flow_rate_kg_s) {
-            _coolant_mass_flow_rate = flow_rate_kg_s;
-        }
-        void setCoolantInletTemperature(double temp_C) {
-            _coolant_inlet_temperature = temp_C;
-        }
+        void setRatedPower(double power) { _rated_thermal_power_MW = power; }
+        void setCoolantFlowRate(double flow_rate);
+        void setCoolantInletTemperature(double temp) { _coolant_inlet_temperature = temp; }
 
-        void setControlRodEffectiveness(double effectiveness) {
-            _control_rod_worth = effectiveness;
-        }
-        void setBoronEffectiveness(double effectiveness) {
-            _boron_worth = effectiveness;
-        }
+        // New setters for plenum and leg masses
+        void setUpperPlenumMass(double mass);
+        void setLowerPlenumMass(double mass);
+        void setHotLegMass(double mass);
+        void setColdLegMass(double mass);
+        void setFractionPowerInFuel(double fraction);
 
-        void setHeatTransferCoefficient(Function *func) {
-            _convective_heat_transfer_coefficient.reset(func);
-        }
-        void setFuelSpecificHeatFunction(Function *func) {
-            _fuel_specific_heat.reset(func);
-        }
-        void setFuelTemperatureCoEfficientFunction(Function *func) {
-            _fuel_temperature_coefficient.reset(func);
-        }
-        void setModeratorTemperatureCoEfficientFunction(Function *func) {
-            _moderator_temperature_coefficient.reset(func);
-        }
-        void setBoronTemperatureCoEfficientFunction(Function *func) {
-            _boron_temperature_coefficient.reset(func);
-        }
+        void setControlRodEffectiveness(double worth) { _control_rod_worth = worth; }
+        void setBoronEffectiveness(double worth) { _boron_worth = worth; }
 
-        void setHeatTransferCoefficient(std::unique_ptr<Function> func) {
-            _convective_heat_transfer_coefficient = std::move(func);
-        }
-        void setFuelSpecificHeatFunction(std::unique_ptr<Function> func) {
-            _fuel_specific_heat = std::move(func);
-        }
-        void setFuelTemperatureCoEfficientFunction(std::unique_ptr<Function> func) {
-            _fuel_temperature_coefficient = std::move(func);
-        }
-        void
-        setModeratorTemperatureCoEfficientFunction(std::unique_ptr<Function> func) {
-            _moderator_temperature_coefficient = std::move(func);
-        }
-        void setBoronTemperatureCoEfficientFunction(std::unique_ptr<Function> func) {
-            _boron_temperature_coefficient = std::move(func);
-        }
-
-        static Function *createConstantFunction(double value);
+        void setHeatTransferCoefficient(Function *h) { _convective_heat_transfer_coefficient = h; }
+        void setFuelSpecificHeatFunction(Function *c_f) { _fuel_specific_heat = c_f; }
+        void setFuelTemperatureCoEfficientFunction(Function *alpha_f) { _fuel_temperature_coefficient = alpha_f; }
+        void setModeratorTemperatureCoEfficientFunction(Function *alpha_m) { _moderator_temperature_coefficient = alpha_m; }
+        void setBoronTemperatureCoEfficientFunction(Function *alpha_b) { _boron_temperature_coefficient = alpha_b; }
 
         void insertControlRod(double length);
         void injectBoron(double boron_concentration);
 
-        void print_states() {
-            std::cout << std::setw(25) << this->getState().time << std::setw(14)
-                      << this->getPower() << std::setw(14)
-                      << this->getReactivity() * 1e5 << std::setw(14)
-                      << this->getFuelTemperature() << std::setw(14)
-                      << this->getModeratorTemperature() << std::endl;
-        };
+        static Function *createConstantFunction(double value);
+
+        void printStates() const;
+
+        void recordState(std::ostream& csv_file);
+        void writeCSVHeader(std::ostream& csv_file) ;
 
     private:
         unsigned int _number_of_neutron_groups;
@@ -162,42 +139,59 @@ namespace astara {
         double _total_delayed_neutron_fraction;
         double _prompt_neutron_fraction;
 
+        ReactorState _state;
+
+        // Reactor thermal parameters
         double _fuel_mass = 0.0;
+        double _fuel_mass_per_node = 0.0;
         double _moderator_mass = 0.0;
+        double _coolant_mass_per_node = 0.0;
         double _thermal_capacity_fuel = 0.0;
         double _thermal_capacity_moderator = 0.0;
         double _heat_transfer_area = 0.0;
-        double _fission_energy = 3.2e-11;
+        double _heat_transfer_area_per_node = 0.0;
+        double _fission_energy = 0.0;
+        double _rated_thermal_power_MW = 0.0;
+        double _coolant_mass_flow_rate = 0.0;
+        double _coolant_mass_flow_rate_per_node = 0.0;
+        double _coolant_inlet_temperature = 0.0;
 
+        // New parameters for plenum and legs
+        double _upper_plenum_mass = 0.0;
+        double _lower_plenum_mass = 0.0;
+        double _hot_leg_mass = 0.0;
+        double _cold_leg_mass = 0.0;
+        double _fraction_power_in_fuel = 0.97;  // Default from thesis
+
+        // Reactivity coefficients
         double _control_rod_worth = 0.0;
         double _boron_worth = 0.0;
 
-        double _rated_thermal_power_MW = 3400.0;
-        double _coolant_mass_flow_rate = 17700.0;
-        double _coolant_inlet_temperature = 296.96;
-
-        std::unique_ptr<Function> _convective_heat_transfer_coefficient;
-        std::unique_ptr<Function> _fuel_specific_heat;
-        std::unique_ptr<Function> _fuel_temperature_coefficient;
-        std::unique_ptr<Function> _moderator_temperature_coefficient;
-        std::unique_ptr<Function> _boron_temperature_coefficient;
-
-        ReactorState _state;
+        // Temperature-dependent functions
+        Function *_convective_heat_transfer_coefficient = nullptr;
+        Function *_fuel_specific_heat = nullptr;
+        Function *_fuel_temperature_coefficient = nullptr;
+        Function *_moderator_temperature_coefficient = nullptr;
+        Function *_boron_temperature_coefficient = nullptr;
 
         double calculateDRhoDt() const;
+        double calculateTotalReactivity() const;
         double calculateDPowerDt() const;
+        double calculateFuelNodeDt(int node) const;
+        double calculateCoolantNodeDt(int node) const;
+        double calculateDUpperPlenumDt() const;
+        double calculateDLowerPlenumDt() const;
+        double calculateDHotLegDt() const;
+        double calculateDColdLegDt() const;
         double calculateDFuelTempDt() const;
         double calculateDModeratorTempDt() const;
         double calculateDCDt(unsigned int group_index) const;
-        double calculateTotalReactivity() const;
 
         ReactorState evaluateDerivatives(const ReactorState &s);
-
-        void clampState();
-
         void integrateRK4(double dt);
+        void clampState();
     };
 
-} // namespace astara
+}
 
-#endif // REACTOR_H
+#endif // ASTARA_REACTOR_H
