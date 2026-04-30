@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin         
           sudo apt install -y cmake libgtest-dev
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: cool_prop
         shell: bash
@@ -37,12 +37,25 @@ jobs:
       - name: Run Tests
         shell: bash
         run: |
-          cd build/unit_tests
-          ./function_tests
-          ./reactor_tests
+          cd build/tests
+          ./test_state
+          ./test_integrator
+          ./test_units
+          ./test_water
+          ./test_controllers
+          ./test_kinetics_analytical
+          ./test_reactor_analytical
+          ./test_pump_analytical
+          ./test_pressurizer_analytical
+          ./test_helical_sg_analytical
+          ./test_sg_analytical
+          ./test_primary_loop
 
       - name: Run examples
         shell: bash
         run: |
           cd build/examples
-          ./reactor_example
+          ./reactivity_step_transient
+          ./pump_trip
+          ./pressurizer_heatup
+          ./helical_sg_transient
