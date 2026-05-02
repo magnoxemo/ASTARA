@@ -1,0 +1,30 @@
+# this issue template is adapted and edited
+# from https://github.com/idaholab/moose
+
+name: Bug Report
+description: Report a bug that is preventing proper operation of ASTARA
+labels: 'T: defect, P: normal'
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        #### Before submitting a bug, please make sure the issue hasn't been already addressed by searching through [the existing and past issues](https://github.com/idaholab/moose/issues).
+  - type: textarea
+    attributes:
+      label: Bug or feature description
+      description: |
+        A clear and concise description of the bug or feature.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Impact
+      description: |
+        How does it impact your research
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for contributing!
