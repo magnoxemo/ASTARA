@@ -90,14 +90,14 @@ public:
                 std::unique_ptr<pressurizer::Pressurizer> pressurizer);
 
     // ---------- Component accessors ----------
-    reactor::Reactor&             reactor()      noexcept { return *reactor_; }
-    const reactor::Reactor&       reactor() const noexcept { return *reactor_; }
-    sg::AliSteamGenerator&        steamGenerator()      noexcept { return *sg_; }
-    const sg::AliSteamGenerator&  steamGenerator() const noexcept { return *sg_; }
-    pump::HomologousPump&         pump()         noexcept { return *pump_; }
-    const pump::HomologousPump&   pump() const   noexcept { return *pump_; }
-    pressurizer::Pressurizer&     pressurizer()       noexcept { return *pressurizer_; }
-    const pressurizer::Pressurizer& pressurizer() const noexcept { return *pressurizer_; }
+    inline reactor::Reactor&               reactor()             noexcept { return *reactor_; }
+    const reactor::Reactor&                reactor()             const noexcept { return *reactor_; }
+    inline sg::AliSteamGenerator&          steamGenerator()      noexcept { return *sg_; }
+    inline const sg::AliSteamGenerator&    steamGenerator()      const noexcept { return *sg_; }
+    inline pump::HomologousPump&           pump()                noexcept { return *pump_; }
+    inline const pump::HomologousPump&     pump()                const   noexcept { return *pump_; }
+    inline pressurizer::Pressurizer&       pressurizer()         noexcept { return *pressurizer_; }
+    inline const pressurizer::Pressurizer& pressurizer()         const noexcept { return *pressurizer_; }
 
     // ---------- Controllers (optional, ownership transferred) ----------
     void setReactorController(std::unique_ptr<control::ReactorController> c) noexcept {
