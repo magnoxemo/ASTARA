@@ -55,7 +55,7 @@ DelayedGroupConstants DelayedGroupConstants::u235SixGroup() noexcept {
     // U-235 thermal fission.  The thesis lists slightly differing values for
     // beta_5/beta_6 in different tables; the values below come from the body
     // of the text and are consistent with widely-used references.
-    // https://www.researchgate.net/publication/280309469_Evaluation_of_delayed_neutron_data_for_JENDL-33 
+    // https://doi.org/10.1080/00223131.2002.10875059
     DelayedGroupConstants g;
     g.lambda = {0.01244, 0.03054, 0.1140, 0.3014, 1.1360, 3.01400};
     g.beta   = {0.000209, 0.001414, 0.001309, 0.002727, 0.000925, 0.000273};
