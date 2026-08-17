@@ -26,6 +26,7 @@ option(ASTARA_BUILD_EXAMPLES "Build example programs"        ON)
 option(ASTARA_BUILD_DOCS     "Build Doxygen documentation"   OFF)
 option(ASTARA_ENABLE_OPENMP  "Enable OpenMP parallelism"     ON)
 option(ASTARA_DEBUG_CHECKS   "Enable per-step conservation residual checks" OFF)
+option(ASTARA_BUILD_PYTHON   "Build nanobind Python bindings" ON)
 
 # -----------------------------------------------------------------------------
 # Compiler warnings (interface target so all our targets pick them up)
@@ -72,6 +73,21 @@ if(ASTARA_BUILD_EXAMPLES)
 endif()
 
 # -----------------------------------------------------------------------------
+# Python bindings (nanobind)
+# -----------------------------------------------------------------------------
+if(ASTARA_BUILD_PYTHON)
+    set(NANOBIND_DIR "${CMAKE_CURRENT_SOURCE_DIR}/externals/nanobind")
+    if(NOT EXISTS "${NANOBIND_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR
+                "nanobind not found at ${NANOBIND_DIR}.\n"
+                "Run: git submodule update --init --recursive externals/nanobind")
+    endif()
+    find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
+    add_subdirectory(${NANOBIND_DIR})
+    add_subdirectory(python)
+endif()
+
+# -----------------------------------------------------------------------------
 # Doxygen
 # -----------------------------------------------------------------------------
 if(ASTARA_BUILD_DOCS)
@@ -94,5 +110,6 @@ message(STATUS "  build type        : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  OpenMP            : ${ASTARA_ENABLE_OPENMP}")
 message(STATUS "  tests             : ${ASTARA_BUILD_TESTS}")
 message(STATUS "  examples          : ${ASTARA_BUILD_EXAMPLES}")
+message(STATUS "  python bindings   : ${ASTARA_BUILD_PYTHON}")
 message(STATUS "  docs              : ${ASTARA_BUILD_DOCS}")
 message(STATUS "  conservation chk  : ${ASTARA_DEBUG_CHECKS}")

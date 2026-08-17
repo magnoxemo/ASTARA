@@ -1,0 +1,40 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.0.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "astara"
+version = "0.2.0"
+description = "PWR primary-loop dynamic simulator"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Ibne Walid Ahammed" }]
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Homepage = "https://github.com/du-ards/ASTARA"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["python/astara"]
+cmake.source-dir = "."
+cmake.build-type = "Release"
+
+[tool.scikit-build.cmake.define]
+ASTARA_BUILD_PYTHON = "ON"
+ASTARA_BUILD_TESTS = "OFF"
+ASTARA_BUILD_EXAMPLES = "OFF"
+ASTARA_BUILD_DOCS = "OFF"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
