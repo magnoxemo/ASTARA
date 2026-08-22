@@ -81,66 +81,6 @@ def make_shared_sg(props):
     return sg
 
 
-def animate_axial_temperatures(df, n_loops, out_path, target_frames=150, fps=20):
-    """GIF of every loop's fuel + moderator axial temperature profile over time.
-
-    `df` must carry `fuel_profile{i}`/`moderator_profile{i}` columns (each
-    cell a list of per-node temperatures, one column per loop -- see
-    `loop_fuel_profile`/`loop_moderator_profile` in `main()`) plus `t_s`.
-    Subsamples to ~`target_frames` frames so the file stays a reasonable
-    size regardless of how finely the simulation was recorded.
-    """
-    import matplotlib.pyplot as plt
-    import matplotlib.animation as animation
-
-    stride = max(1, len(df) // target_frames)
-    sub = df.iloc[::stride].reset_index(drop=True)
-
-    fuel_cols = [f"fuel_profile{i}" for i in range(n_loops)]
-    mod_cols = [f"moderator_profile{i}" for i in range(n_loops)]
-    x_fuel = list(range(1, len(sub[fuel_cols[0]].iloc[0]) + 1))
-    x_mod = list(range(1, len(sub[mod_cols[0]].iloc[0]) + 1))
-
-    def bounds(cols):
-        lo = min(min(row) for col in cols for row in sub[col])
-        hi = max(max(row) for col in cols for row in sub[col])
-        pad = 0.05 * (hi - lo) if hi > lo else 1.0
-        return lo - pad, hi + pad
-
-    fuel_lo, fuel_hi = bounds(fuel_cols)
-    mod_lo, mod_hi = bounds(mod_cols)
-
-    fig, (ax_fuel, ax_mod) = plt.subplots(1, 2, figsize=(11, 4.5))
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-    fuel_lines = [ax_fuel.plot([], [], color=colors[i % len(colors)], label=f"loop{i}")[0] for i in range(n_loops)]
-    mod_lines = [ax_mod.plot([], [], color=colors[i % len(colors)], label=f"loop{i}")[0] for i in range(n_loops)]
-
-    for ax, x, ylo, yhi, ylabel, title in (
-        (ax_fuel, x_fuel, fuel_lo, fuel_hi, "fuel temperature [K]", "Fuel axial profile"),
-        (ax_mod, x_mod, mod_lo, mod_hi, "coolant/moderator temperature [K]", "Coolant axial profile"),
-    ):
-        ax.set_xlim(x[0], x[-1])
-        ax.set_ylim(ylo, yhi)
-        ax.set_xlabel("axial node (inlet -> outlet)")
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.legend(loc="upper left", fontsize="small")
-
-    time_title = fig.suptitle("")
-
-    def update(frame_idx):
-        row = sub.iloc[frame_idx]
-        for i in range(n_loops):
-            fuel_lines[i].set_data(x_fuel, row[f"fuel_profile{i}"])
-            mod_lines[i].set_data(x_mod, row[f"moderator_profile{i}"])
-        time_title.set_text(f"t = {row['t_s']:.1f} s")
-        return [*fuel_lines, *mod_lines, time_title]
-
-    anim = animation.FuncAnimation(fig, update, frames=len(sub), interval=1000.0 / fps, blit=False)
-    anim.save(out_path, writer=animation.PillowWriter(fps=fps))
-    plt.close(fig)
-
-
 def main():
     props = astara.IF97Water()
 
