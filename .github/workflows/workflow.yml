@@ -3,7 +3,6 @@ name: Tauhid_CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, cpp_kernel ]
   pull_request:
     branches: [ main ]
 
