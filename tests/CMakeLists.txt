@@ -40,6 +40,7 @@ astara_add_test(test_integrator    unit/test_integrator.cpp)
 astara_add_test(test_units         unit/test_units.cpp)
 astara_add_test(test_water         unit/test_water.cpp)
 astara_add_test(test_controllers   unit/test_controllers.cpp)
+astara_add_test(test_control_rod_system unit/test_control_rod_system.cpp)
 
 # Analytical tests: closed-form solutions to physics problems, used to earn
 # trust in each component before integrating them in a primary loop.

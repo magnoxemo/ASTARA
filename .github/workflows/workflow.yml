@@ -14,8 +14,8 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin         
-          sudo apt install -y cmake libgtest-dev
+          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin
+          sudo apt install -y cmake libgtest-dev python3-dev python3-pip
       - name: Checkout code
         uses: actions/checkout@v6
         with:
@@ -54,3 +54,11 @@ jobs:
           ./pump_trip
           ./pressurizer_heatup
           ./helical_sg_transient
+
+      - name: Test Python bindings
+        shell: bash
+        env:
+          MPLBACKEND: Agg
+        run: |
+          pip install --user pytest pandas matplotlib
+          PYTHONPATH="${GITHUB_WORKSPACE}/build/python" python3 -m pytest python/tests -q

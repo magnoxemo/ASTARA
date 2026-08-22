@@ -22,6 +22,7 @@ Homepage = "https://github.com/du-ards/ASTARA"
 
 [project.optional-dependencies]
 test = ["pytest"]
+analysis = ["pandas>=2.0", "matplotlib>=3.7"]
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
